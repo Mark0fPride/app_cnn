@@ -6,10 +6,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.cnn.mushroom.ui.theme.CNNTheme
-import com.cnn.mushroom.ui.screens.Greeting
+
 import com.cnn.mushroom.ui.screens.MainScreen
 
 class MainActivity : ComponentActivity() {

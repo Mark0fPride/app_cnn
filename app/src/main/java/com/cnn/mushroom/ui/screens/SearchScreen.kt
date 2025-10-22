@@ -101,7 +101,11 @@ fun MushroomInformation(mushroom: Mushroom, modifier: Modifier = Modifier) {
     }
 }
 
-
+@Preview(showBackground = true)
+@Composable
+fun MushroomListPreview() {
+    MushroomList(mushrooms)
+}
 
 @Preview(showBackground = true)
 @Composable

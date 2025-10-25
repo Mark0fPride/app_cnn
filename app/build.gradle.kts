@@ -57,7 +57,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.core.ktx)
     implementation("com.google.accompanist:accompanist-permissions:0.35.1-alpha")
-
+    implementation("io.coil-kt:coil-compose:2.4.0")
     // Room dependencies
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

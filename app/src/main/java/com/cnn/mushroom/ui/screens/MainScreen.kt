@@ -18,13 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
 import com.cnn.mushroom.ui.theme.CNNTheme
 import com.cnn.mushroom.R
 import androidx.compose.runtime.getValue
@@ -34,10 +32,21 @@ import androidx.compose.runtime.setValue
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Environment
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Button
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import com.cnn.mushroom.MyApplication
+import androidx.core.content.FileProvider
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(modifier: Modifier = Modifier) {
@@ -46,6 +55,15 @@ fun MainScreen(modifier: Modifier = Modifier) {
     var showPermanentlyDeniedDialog by remember { mutableStateOf(false) }
     var callPermissionsRequester by  remember { mutableStateOf(false) }
     var allPermissionsGranted by remember { mutableStateOf(areAllPermissionsGranted(arrayOf(Manifest.permission.CAMERA), activity)) }
+
+    val context = LocalContext.current
+    val photoState = rememberPhotoState()
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        photoState.onPhotoTaken(success)
+    }
 
     Scaffold(
         topBar = {
@@ -61,7 +79,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
         }
         else if(callPermissionsRequester){
             PermissionRequester(
-                permissions = arrayOf(Manifest.permission.CAMERA,), // example
+                permissions = arrayOf(Manifest.permission.CAMERA), // example
                 activity = activity,
                 onPermissionGranted = {
                     callPermissionsRequester = false
@@ -91,13 +109,13 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 ) {
                     Spacer(modifier = Modifier.size(16.dp))
                     Box(modifier = Modifier.size(300.dp)) {
-                        Image(
-                            painter = painterResource(id = R.drawable.logo_background),
-                            contentDescription = null,
-                            modifier = Modifier.matchParentSize()
+                        val painter = rememberAsyncImagePainter(
+                            ImageRequest.Builder(LocalContext.current)
+                                .data(photoState.displayPhoto)
+                                .build()
                         )
                         Image(
-                            painter = painterResource(id = R.drawable.logo_foreground),
+                            painter = painter,
                             contentDescription = null,
                             modifier = Modifier.matchParentSize()
                         )
@@ -113,13 +131,13 @@ fun MainScreen(modifier: Modifier = Modifier) {
                     )
 
                     Button(onClick = {
-                        if(allPermissionsGranted) {
-                            callPermissionsRequester = false
+                        callPermissionsRequester = !allPermissionsGranted
+                        if (allPermissionsGranted) {
+                            val uri = photoState.prepareNewPhoto(context)
+                            launcher.launch(uri)
                         }
-                        else callPermissionsRequester = true
-
                     }) {
-                        Text("Zrób zdjęcie")
+                        Text("Take Photo")
                     }
 
                 }
@@ -128,12 +146,52 @@ fun MainScreen(modifier: Modifier = Modifier) {
     }
 }
 
+fun createImageFile(context: Context): File {
+    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+    return File.createTempFile("IMG_${timestamp}_", ".jpg", storageDir)
+}
 
 fun areAllPermissionsGranted(requiredPermissions: Array<String>, context: Context): Boolean {
     return requiredPermissions.all {
         ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
 }
+fun onImageSaved(path: String){
+   //TO DO
+}
+
+
+class PhotoState {
+    var currentPhotoUri: Uri? by mutableStateOf(null)
+        private set
+
+    var displayPhoto: Uri? by mutableStateOf(null)
+        private set
+
+    fun prepareNewPhoto(context: Context): Uri {
+        val photoFile = createImageFile(context)
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile
+        )
+        currentPhotoUri = uri
+        return uri
+    }
+
+    fun onPhotoTaken(success: Boolean) {
+        if (success) {
+            displayPhoto = currentPhotoUri
+            currentPhotoUri?.path?.let { onImageSaved(it) }
+        }
+        currentPhotoUri = null
+    }
+}
+
+@Composable
+fun rememberPhotoState() = remember { PhotoState() }
+
 
 @Preview(showBackground = true)
 @Composable

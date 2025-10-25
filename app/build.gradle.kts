@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
-
 android {
     namespace = "com.cnn.mushroom"
     compileSdk = 36
@@ -55,7 +54,9 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation("androidx.navigation:navigation-compose:2.9.5")
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.core.ktx)
+    implementation("com.google.accompanist:accompanist-permissions:0.35.1-alpha")
 
     // Room dependencies
     implementation(libs.androidx.room.runtime)

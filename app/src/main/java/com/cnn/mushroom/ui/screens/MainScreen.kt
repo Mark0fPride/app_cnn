@@ -1,7 +1,9 @@
 package com.cnn.mushroom.ui.screens
 
+import android.app.Activity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -24,56 +27,113 @@ import androidx.compose.ui.unit.sp
 
 import com.cnn.mushroom.ui.theme.CNNTheme
 import com.cnn.mushroom.R
-
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.compose.material3.Button
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.cnn.mushroom.MyApplication
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(modifier: Modifier = Modifier) {
+    val activity = LocalView.current.context as Activity
+
+    var showPermanentlyDeniedDialog by remember { mutableStateOf(false) }
+    var callPermissionsRequester by  remember { mutableStateOf(false) }
+    var allPermissionsGranted by remember { mutableStateOf(areAllPermissionsGranted(arrayOf(Manifest.permission.CAMERA), activity)) }
 
     Scaffold(
         topBar = {
             TopAppBar()
         }
     ) { innerPadding ->
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .background(color = Color(0xFFE0E0E0))
-                .padding(innerPadding),
 
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-
-            ) {
-                Spacer(modifier = Modifier.size(16.dp))
-                Box(modifier = Modifier.size(300.dp)) {
-                    Image(
-                        painter = painterResource(id = R.drawable.logo_background),
-                        contentDescription = null,
-                        modifier = Modifier.matchParentSize()
-                    )
-                    Image(
-                        painter = painterResource(id = R.drawable.logo_foreground),
-                        contentDescription = null,
-                        modifier = Modifier.matchParentSize()
-                    )
+        if (showPermanentlyDeniedDialog) {
+            OnPermanentlyDeniedDialog(
+                missingPermissions = arrayOf(Manifest.permission.CAMERA),
+                onDismiss = { showPermanentlyDeniedDialog = false; callPermissionsRequester = false }
+            )
+        }
+        else if(callPermissionsRequester){
+            PermissionRequester(
+                permissions = arrayOf(Manifest.permission.CAMERA,), // example
+                activity = activity,
+                onPermissionGranted = {
+                    callPermissionsRequester = false
+                    allPermissionsGranted = true
+                },
+                onPermissionDenied = {
+                    callPermissionsRequester = false
+                },
+                onPermanentlyDenied = {
+                    showPermanentlyDeniedDialog = true
                 }
+            )
+        }
+        else {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(color = Color(0xFFE0E0E0))
+                    .padding(innerPadding),
 
-                Spacer(modifier = Modifier.size(16.dp))
+                ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxSize()
 
-                Text(
-                    text = stringResource(id = R.string.app_name),
-                    textAlign = TextAlign.Center,
-                    fontSize = 24.sp,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                ) {
+                    Spacer(modifier = Modifier.size(16.dp))
+                    Box(modifier = Modifier.size(300.dp)) {
+                        Image(
+                            painter = painterResource(id = R.drawable.logo_background),
+                            contentDescription = null,
+                            modifier = Modifier.matchParentSize()
+                        )
+                        Image(
+                            painter = painterResource(id = R.drawable.logo_foreground),
+                            contentDescription = null,
+                            modifier = Modifier.matchParentSize()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.size(16.dp))
+
+                    Text(
+                        text = stringResource(id = R.string.app_name),
+                        textAlign = TextAlign.Center,
+                        fontSize = 24.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    Button(onClick = {
+                        if(allPermissionsGranted) {
+                            callPermissionsRequester = false
+                        }
+                        else callPermissionsRequester = true
+
+                    }) {
+                        Text("Zrób zdjęcie")
+                    }
+
+                }
             }
         }
     }
 }
 
 
-
+fun areAllPermissionsGranted(requiredPermissions: Array<String>, context: Context): Boolean {
+    return requiredPermissions.all {
+        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
@@ -83,19 +143,4 @@ fun MainScreenPreview(){
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    CNNTheme {
-        Greeting("Android")
-    }
-}
 

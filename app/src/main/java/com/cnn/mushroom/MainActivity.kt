@@ -10,6 +10,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.cnn.mushroom.ui.theme.CNNTheme
 import com.cnn.mushroom.ui.screens.MainScreen
+import android.os.Build
+import androidx.core.app.ActivityCompat
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,5 +27,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
 }
 

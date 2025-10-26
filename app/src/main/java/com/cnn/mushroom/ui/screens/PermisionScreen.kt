@@ -22,21 +22,19 @@ import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun PermissionRequester(
-    permissions: Array<String>,
+    permission: String,
     activity: Activity,
     onPermissionGranted: () -> Unit,
     onPermissionDenied: () -> Unit,
     onPermanentlyDenied: () -> Unit
 ) {
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        val allGranted = results.all { it.value }
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
         when {
-            allGranted -> onPermissionGranted()
-            results.any { (permission, granted) ->
-                !granted && !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
-            } -> onPermanentlyDenied()
+            granted -> onPermissionGranted()
+            !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission) ->
+                onPermanentlyDenied()
             else -> onPermissionDenied()
         }
     }
@@ -45,7 +43,7 @@ fun PermissionRequester(
 
     LaunchedEffect(Unit) {
         if (!launched) {
-            launcher.launch(permissions)
+            launcher.launch(permission)
             launched = true
         }
     }
@@ -54,7 +52,7 @@ fun PermissionRequester(
 
 @Composable
 fun OnPermanentlyDeniedDialog(
-    missingPermissions: Array<String>,
+    missingPermission: String,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -63,9 +61,7 @@ fun OnPermanentlyDeniedDialog(
         title = { Text("Brak uprawnień") },
         text = {
             Text(
-                "Aby korzystać z tej funkcji, przejdź do ustawień i przyznaj wymagane uprawnienia: ${
-                    missingPermissions.joinToString(", ")
-                }"
+                "Aby korzystać z tej funkcji, przejdź do ustawień i przyznaj wymagane uprawnienia: $missingPermission"
             )
         },
         confirmButton = {

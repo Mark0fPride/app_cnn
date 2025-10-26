@@ -33,9 +33,11 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.material3.Button
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -47,6 +49,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(modifier: Modifier = Modifier) {
@@ -54,7 +57,9 @@ fun MainScreen(modifier: Modifier = Modifier) {
 
     var showPermanentlyDeniedDialog by remember { mutableStateOf(false) }
     var callPermissionsRequester by  remember { mutableStateOf(false) }
-    var allPermissionsGranted by remember { mutableStateOf(areAllPermissionsGranted(arrayOf(Manifest.permission.CAMERA), activity)) }
+    var isCameraPermissionGranted by remember { mutableStateOf(isPermissionGranted(Manifest.permission.CAMERA, activity)) }
+    var isStoragePermissionGranted by remember { mutableStateOf(isPermissionGranted(Manifest.permission.READ_MEDIA_IMAGES, activity))}
+    var neededPermission = ""
 
     val context = LocalContext.current
     val photoState = rememberPhotoState()
@@ -73,17 +78,22 @@ fun MainScreen(modifier: Modifier = Modifier) {
 
         if (showPermanentlyDeniedDialog) {
             OnPermanentlyDeniedDialog(
-                missingPermissions = arrayOf(Manifest.permission.CAMERA),
+                missingPermission = neededPermission,
                 onDismiss = { showPermanentlyDeniedDialog = false; callPermissionsRequester = false }
             )
         }
         else if(callPermissionsRequester){
             PermissionRequester(
-                permissions = arrayOf(Manifest.permission.CAMERA), // example
+                permission = neededPermission,
                 activity = activity,
                 onPermissionGranted = {
                     callPermissionsRequester = false
-                    allPermissionsGranted = true
+                    if(neededPermission == Manifest.permission.CAMERA){
+                        isCameraPermissionGranted = true
+                    }
+                    else{
+                        isStoragePermissionGranted = true
+                    }
                 },
                 onPermissionDenied = {
                     callPermissionsRequester = false
@@ -131,13 +141,26 @@ fun MainScreen(modifier: Modifier = Modifier) {
                     )
 
                     Button(onClick = {
-                        callPermissionsRequester = !allPermissionsGranted
-                        if (allPermissionsGranted) {
+                        callPermissionsRequester = !isCameraPermissionGranted
+                        if(!isCameraPermissionGranted)
+                            neededPermission = Manifest.permission.CAMERA
+                        else{
                             val uri = photoState.prepareNewPhoto(context)
                             launcher.launch(uri)
                         }
                     }) {
                         Text("Take Photo")
+                    }
+
+                    Button(onClick = {
+                        callPermissionsRequester = !isStoragePermissionGranted
+                        if(!isStoragePermissionGranted)
+                            neededPermission = Manifest.permission.READ_MEDIA_IMAGES
+                        else{
+                            //todo
+                        }
+                    }) {
+                        Text("Upload Photo")
                     }
 
                 }
@@ -147,16 +170,15 @@ fun MainScreen(modifier: Modifier = Modifier) {
 }
 
 fun createImageFile(context: Context): File {
-    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val timestamp = SimpleDateFormat("yyyyMMdd_HHss", Locale.getDefault()).format(Date())
     val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
     return File.createTempFile("IMG_${timestamp}_", ".jpg", storageDir)
 }
 
-fun areAllPermissionsGranted(requiredPermissions: Array<String>, context: Context): Boolean {
-    return requiredPermissions.all {
-        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-    }
+fun isPermissionGranted(permission: String, context: Context): Boolean {
+    return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 }
+
 fun onImageSaved(path: String){
    //TO DO
 }
@@ -189,10 +211,11 @@ class PhotoState {
     }
 }
 
+
 @Composable
 fun rememberPhotoState() = remember { PhotoState() }
 
-
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview(){

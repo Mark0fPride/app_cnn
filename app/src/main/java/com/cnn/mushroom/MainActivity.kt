@@ -3,27 +3,21 @@ package com.cnn.mushroom
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.ui.Modifier
-import com.cnn.mushroom.ui.theme.CNNTheme
-import com.cnn.mushroom.ui.screens.MainScreen
+
+
 import android.os.Build
-import androidx.core.app.ActivityCompat
+import androidx.annotation.RequiresApi
+import androidx.compose.material3.MaterialTheme
+
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
         setContent {
-            CNNTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    MainScreen(
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            MaterialTheme {
+                MainNavigation()
             }
         }
     }

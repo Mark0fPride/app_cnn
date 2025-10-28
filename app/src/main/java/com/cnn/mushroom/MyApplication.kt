@@ -8,12 +8,17 @@ import com.cnn.mushroom.data.MushroomRepository
 class MyApplication : Application() {
 
     private val database by lazy { AppDatabase.getDatabase(this) }
-
     val repository: MushroomRepository by lazy {
         DefaultMushroomRepository(database.mushroomDao())
     }
 
     override fun onCreate() {
-        super<Application>.onCreate()
+        super.onCreate()
+        instance = this
+    }
+
+    companion object {
+        lateinit var instance: MyApplication
+            private set
     }
 }

@@ -30,29 +30,39 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import android.Manifest
+import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
+
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.Button
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import java.io.File
+
+
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.cnn.mushroom.MyApplication
+import com.cnn.mushroom.classifyMushroom
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(modifier: Modifier = Modifier) {
+fun MainScreen(modifier: Modifier = Modifier,
+               onNavigateToSearch: () -> Unit,
+               onNavigateToSettings: () -> Unit) {
     val activity = LocalView.current.context as Activity
 
     var showPermanentlyDeniedDialog by remember { mutableStateOf(false) }
@@ -68,6 +78,12 @@ fun MainScreen(modifier: Modifier = Modifier) {
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         photoState.onPhotoTaken(success)
+    }
+
+    val launcherStorage = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        photoState.onPhotoUpload(uri)
     }
 
     Scaffold(
@@ -157,10 +173,20 @@ fun MainScreen(modifier: Modifier = Modifier) {
                         if(!isStoragePermissionGranted)
                             neededPermission = Manifest.permission.READ_MEDIA_IMAGES
                         else{
-                            //todo
+                            launcherStorage.launch("image/*")
                         }
                     }) {
                         Text("Upload Photo")
+                    }
+
+                    Column(modifier = modifier) {
+                        Button(onClick = onNavigateToSearch) {
+                            Text("Go to Search")
+                        }
+
+                        Button(onClick = onNavigateToSettings) {
+                            Text("Go to Settings")
+                        }
                     }
 
                 }
@@ -169,59 +195,82 @@ fun MainScreen(modifier: Modifier = Modifier) {
     }
 }
 
-fun createImageFile(context: Context): File {
-    val timestamp = SimpleDateFormat("yyyyMMdd_HHss", Locale.getDefault()).format(Date())
-    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-    return File.createTempFile("IMG_${timestamp}_", ".jpg", storageDir)
-}
 
 fun isPermissionGranted(permission: String, context: Context): Boolean {
     return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 }
 
 fun onImageSaved(path: String){
-   //TO DO
+    //send to ML model
+    var mushroom = classifyMushroom(path)
+    val repository = MyApplication.instance.repository
+
+    CoroutineScope(Dispatchers.IO).launch {
+        repository.addMushroom(mushroom)
+    }
 }
 
+
+fun onImageUpload(path: String){
+    //TO DO
+}
 
 class PhotoState {
     var currentPhotoUri: Uri? by mutableStateOf(null)
         private set
 
-    var displayPhoto: Uri? by mutableStateOf(null)
+    var displayPhoto: Any? by mutableStateOf(R.drawable.logo_background)
         private set
 
     fun prepareNewPhoto(context: Context): Uri {
-        val photoFile = createImageFile(context)
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            photoFile
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val fileName = "IMG_$timestamp.jpg"
+
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CNN") // 👈 visible in Gallery
+        }
+
+        val uri = context.contentResolver.insert(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            contentValues
         )
+
         currentPhotoUri = uri
-        return uri
+        return uri ?: throw IOException("Failed to create MediaStore entry for new photo")
     }
+
 
     fun onPhotoTaken(success: Boolean) {
         if (success) {
             displayPhoto = currentPhotoUri
-            currentPhotoUri?.path?.let { onImageSaved(it) }
+            currentPhotoUri?.toString()?.let { onImageSaved(it) }
         }
         currentPhotoUri = null
     }
-}
 
+    fun onPhotoUpload(uri: Uri?){
+        if(uri!=null){
+            currentPhotoUri = uri
+            displayPhoto = currentPhotoUri
+            currentPhotoUri?.toString()?.let { onImageUpload(it) }
+        }
+        currentPhotoUri = null
+
+    }
+}
 
 @Composable
 fun rememberPhotoState() = remember { PhotoState() }
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-@Preview(showBackground = true)
-@Composable
-fun MainScreenPreview(){
-    CNNTheme {
-        MainScreen(modifier = Modifier)
-    }
-}
+//@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+//@Preview(showBackground = true)
+//@Composable
+//fun MainScreenPreview(){
+//    CNNTheme {
+//        MainScreen(modifier = Modifier)
+//    }
+//}
 
 

@@ -1,7 +1,7 @@
 package com.cnn.mushroom.ui.screens
 import android.app.Application
 import androidx.lifecycle.ViewModel
-import com.cnn.mushroom.data.Mushroom
+import com.cnn.mushroom.data.MushroomEntity
 import com.cnn.mushroom.data.MushroomRepository
 
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,8 +18,6 @@ class MushroomViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-
-
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
     }
@@ -29,5 +27,5 @@ class MushroomViewModel(
 sealed interface MushroomUiState {
     object Loading : MushroomUiState
     data class Error(val throwable: Throwable) : MushroomUiState
-    data class Success(val data: List<Mushroom>) : MushroomUiState
+    data class Success(val data: List<MushroomEntity>) : MushroomUiState
 }

@@ -1,6 +1,9 @@
 package com.cnn.mushroom.data
 
 import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
@@ -8,4 +11,14 @@ import kotlinx.coroutines.flow.Flow
 interface MushroomDao{
     @Query("SELECT * FROM mushrooms")
     fun getAllMushrooms(): Flow<List<MushroomEntity>>
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun addMushroom(mushroomEntity: MushroomEntity)
+    @Query("Delete FROM mushrooms")
+    fun deleteAllMushrooms()
+    @Delete
+    fun deleteMushroom(mushroomEntity: MushroomEntity)
+    @Query("SELECT * FROM mushrooms WHERE id = :id")
+    fun getMushroomById(id: Int): Flow<MushroomEntity?>
 }
+
+

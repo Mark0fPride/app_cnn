@@ -40,8 +40,17 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
@@ -60,15 +69,16 @@ import java.io.IOException
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(modifier: Modifier = Modifier,
-               onNavigateToSearch: () -> Unit,
-               onNavigateToSettings: () -> Unit) {
+fun MainScreen(
+    modifier: Modifier = Modifier,
+    onNavigateToSearch: () -> Unit,
+    onNavigateToSettings: () -> Unit
+) {
     val activity = LocalView.current.context as Activity
-
     var showPermanentlyDeniedDialog by remember { mutableStateOf(false) }
-    var callPermissionsRequester by  remember { mutableStateOf(false) }
+    var callPermissionsRequester by remember { mutableStateOf(false) }
     var isCameraPermissionGranted by remember { mutableStateOf(isPermissionGranted(Manifest.permission.CAMERA, activity)) }
-    var isStoragePermissionGranted by remember { mutableStateOf(isPermissionGranted(Manifest.permission.READ_MEDIA_IMAGES, activity))}
+    var isStoragePermissionGranted by remember { mutableStateOf(isPermissionGranted(Manifest.permission.READ_MEDIA_IMAGES, activity)) }
     var neededPermission = ""
 
     val context = LocalContext.current
@@ -87,9 +97,7 @@ fun MainScreen(modifier: Modifier = Modifier,
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar()
-        }
+        topBar = { TopAppBar() }
     ) { innerPadding ->
 
         if (showPermanentlyDeniedDialog) {
@@ -97,44 +105,43 @@ fun MainScreen(modifier: Modifier = Modifier,
                 missingPermission = neededPermission,
                 onDismiss = { showPermanentlyDeniedDialog = false; callPermissionsRequester = false }
             )
-        }
-        else if(callPermissionsRequester){
+        } else if (callPermissionsRequester) {
             PermissionRequester(
                 permission = neededPermission,
                 activity = activity,
                 onPermissionGranted = {
                     callPermissionsRequester = false
-                    if(neededPermission == Manifest.permission.CAMERA){
+                    if (neededPermission == Manifest.permission.CAMERA) {
                         isCameraPermissionGranted = true
-                    }
-                    else{
+                    } else {
                         isStoragePermissionGranted = true
                     }
                 },
-                onPermissionDenied = {
-                    callPermissionsRequester = false
-                },
-                onPermanentlyDenied = {
-                    showPermanentlyDeniedDialog = true
-                }
+                onPermissionDenied = { callPermissionsRequester = false },
+                onPermanentlyDenied = { showPermanentlyDeniedDialog = true }
             )
-        }
-        else {
+        } else {
             Box(
                 modifier = modifier
                     .fillMaxSize()
-                    .background(color = Color(0xFFE0E0E0))
-                    .padding(innerPadding),
-
-                ) {
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(innerPadding)
+            ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxSize()
-
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Spacer(modifier = Modifier.size(16.dp))
-                    Box(modifier = Modifier.size(300.dp)) {
+                    // Podgląd zdjęcia
+                    Box(
+                        modifier = Modifier
+                            .size(300.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(2.dp, Color.Gray, RoundedCornerShape(16.dp))
+                    ) {
                         val painter = rememberAsyncImagePainter(
                             ImageRequest.Builder(LocalContext.current)
                                 .data(photoState.displayPhoto)
@@ -142,58 +149,66 @@ fun MainScreen(modifier: Modifier = Modifier,
                         )
                         Image(
                             painter = painter,
-                            contentDescription = null,
-                            modifier = Modifier.matchParentSize()
+                            contentDescription = "Photo Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
-
-                    Spacer(modifier = Modifier.size(16.dp))
 
                     Text(
                         text = stringResource(id = R.string.app_name),
                         textAlign = TextAlign.Center,
-                        fontSize = 24.sp,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
 
-                    Button(onClick = {
-                        callPermissionsRequester = !isCameraPermissionGranted
-                        if(!isCameraPermissionGranted)
-                            neededPermission = Manifest.permission.CAMERA
-                        else{
-                            val uri = photoState.prepareNewPhoto(context)
-                            launcher.launch(uri)
-                        }
-                    }) {
-                        Text("Take Photo")
+                    // Przyciski akcji
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Button(
+                            onClick = {
+                                callPermissionsRequester = !isCameraPermissionGranted
+                                if (!isCameraPermissionGranted)
+                                    neededPermission = Manifest.permission.CAMERA
+                                else {
+                                    val uri = photoState.prepareNewPhoto(context)
+                                    launcher.launch(uri)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(0.7f)
+                        ) { Text("Take Photo") }
+
+                        Button(
+                            onClick = {
+                                callPermissionsRequester = !isStoragePermissionGranted
+                                if (!isStoragePermissionGranted)
+                                    neededPermission = Manifest.permission.READ_MEDIA_IMAGES
+                                else {
+                                    launcherStorage.launch("image/*")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(0.7f)
+                        ) { Text("Upload Photo") }
+
+                        Button(
+                            onClick = onNavigateToSearch,
+                            modifier = Modifier.fillMaxWidth(0.7f)
+                        ) { Text("Go to Search") }
+
+                        Button(
+                            onClick = onNavigateToSettings,
+                            modifier = Modifier.fillMaxWidth(0.7f)
+                        ) { Text("Go to Settings") }
                     }
-
-                    Button(onClick = {
-                        callPermissionsRequester = !isStoragePermissionGranted
-                        if(!isStoragePermissionGranted)
-                            neededPermission = Manifest.permission.READ_MEDIA_IMAGES
-                        else{
-                            launcherStorage.launch("image/*")
-                        }
-                    }) {
-                        Text("Upload Photo")
-                    }
-
-                    Column(modifier = modifier) {
-                        Button(onClick = onNavigateToSearch) {
-                            Text("Go to Search")
-                        }
-
-                        Button(onClick = onNavigateToSettings) {
-                            Text("Go to Settings")
-                        }
-                    }
-
                 }
             }
         }
     }
 }
+
 
 
 fun isPermissionGranted(permission: String, context: Context): Boolean {

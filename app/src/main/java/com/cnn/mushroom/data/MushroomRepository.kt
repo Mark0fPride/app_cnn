@@ -10,6 +10,7 @@ interface MushroomRepository {
     fun deleteAllMushrooms()
     fun deleteMushroom(mushroomEntity: MushroomEntity)
     fun getMushroomById(id: Int): Flow<MushroomEntity?>
+    fun getRecentMushroom(): Flow<MushroomEntity?>
 }
 
 @Singleton
@@ -31,6 +32,9 @@ class DefaultMushroomRepository @Inject constructor(
 
     override fun getMushroomById(id: Int): Flow<MushroomEntity?> =
         mushroomDao.getMushroomById(id)
+
+    override  fun getRecentMushroom(): Flow<MushroomEntity?> =
+        mushroomDao.getRecentMushroom()
 }
 
 

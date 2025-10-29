@@ -40,15 +40,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -68,10 +66,12 @@ import coil.request.ImageRequest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.cnn.mushroom.classifyMushroom
+
 import java.io.IOException
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+
+
 
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -92,6 +92,7 @@ fun MainScreen(
     val context = LocalContext.current
     val photoState = rememberPhotoState()
     var photoUpload by remember { mutableStateOf(false) }
+
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -178,6 +179,45 @@ fun MainScreen(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
+
+                    val isComputing by viewModel.isComputing.collectAsState()
+                    val mushroom by viewModel.recentMushroom.collectAsState()
+
+                    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+
+                        if (photoState.displayPhoto != R.drawable.logo_background && isComputing) {
+                            Text("Computing...", style = MaterialTheme.typography.bodyLarge)
+
+                        } else if (mushroom != null) {
+                            mushroom?.let { m ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Text(
+                                        text = m.name,
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    InfoRow(label = "Timestamp", value = m.timestamp.toString())
+                                    InfoRow(
+                                        label = "Confidence Score",
+                                        value = m.confidenceScore?.toString() ?: "Unknown"
+                                    )
+                                    InfoRow(
+                                        label = "Is Edible",
+                                        value = m.isEdible?.let { if (it) "Yes" else "No" } ?: "Unknown"
+                                    )
+                                }
+                            }
+                        } else {
+                            Text("Take a photo to classify!", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
                     if(photoUpload){
                         Dialog(onDismissRequest = { photoUpload = false }) {
                             Card(
@@ -247,23 +287,10 @@ fun MainScreen(
 }
 
 
-
-
-
 fun isPermissionGranted(permission: String, context: Context): Boolean {
     return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 }
 
-fun onImageSaved(path: String, viewModel: MushroomViewModel){
-    //send to ML model
-    var mushroom = classifyMushroom(path)
-    viewModel.addMushroom(mushroom)
-}
-
-
-fun onImageUpload(path: String,viewModel: MushroomViewModel){
-    onImageSaved(path,viewModel)
-}
 
 class PhotoState {
     var currentPhotoUri: Uri? by mutableStateOf(null)
@@ -271,6 +298,7 @@ class PhotoState {
 
     var displayPhoto: Any? by mutableStateOf(R.drawable.logo_background)
         private set
+
 
     fun prepareNewPhoto(context: Context): Uri {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -295,16 +323,21 @@ class PhotoState {
     fun onPhotoTaken(success: Boolean, viewModel: MushroomViewModel) {
         if (success) {
             displayPhoto = currentPhotoUri
-            currentPhotoUri?.toString()?.let { onImageSaved(it, viewModel) }
+            currentPhotoUri?.toString()?.let { path ->
+                viewModel.classifyPhoto(path)
+            }
         }
         currentPhotoUri = null
     }
+
 
     fun onPhotoUpload(uri: Uri?, viewModel: MushroomViewModel){
         if(uri!=null){
             currentPhotoUri = uri
             displayPhoto = currentPhotoUri
-            currentPhotoUri?.toString()?.let { onImageUpload(it, viewModel) }
+            currentPhotoUri?.toString()?.let { path ->
+                viewModel.classifyPhoto(path)
+            }
         }
         currentPhotoUri = null
 

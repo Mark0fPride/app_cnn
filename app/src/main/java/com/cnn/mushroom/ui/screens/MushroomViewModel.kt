@@ -1,26 +1,43 @@
 package com.cnn.mushroom.ui.screens
-import android.app.Application
+
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.cnn.mushroom.data.MushroomEntity
 import com.cnn.mushroom.data.MushroomRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import jakarta.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-
-
-
-class MushroomViewModel(
+@HiltViewModel
+class MushroomViewModel @Inject constructor(
     private val mushroomRepository: MushroomRepository,
-    private val application: Application
 ) : ViewModel() {
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+//    private val _searchQuery = MutableStateFlow("")
+//    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+//
+//    fun updateSearchQuery(query: String) {
+//        _searchQuery.value = query
+//    }
 
-    fun updateSearchQuery(query: String) {
-        _searchQuery.value = query
+    val mushrooms = mushroomRepository.getAllMushrooms()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addMushroom(mushroom: MushroomEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            mushroomRepository.addMushroom(mushroom)
+        }
     }
+
+    fun deleteAllMushrooms(){
+        viewModelScope.launch(Dispatchers.IO) {
+            mushroomRepository.deleteAllMushrooms()
+        }
+    }
+
 }
 
 // UI States

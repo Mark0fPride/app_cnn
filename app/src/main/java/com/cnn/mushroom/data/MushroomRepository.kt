@@ -1,5 +1,7 @@
 package com.cnn.mushroom.data
 
+import jakarta.inject.Inject
+import jakarta.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 
 interface MushroomRepository {
@@ -10,7 +12,8 @@ interface MushroomRepository {
     fun getMushroomById(id: Int): Flow<MushroomEntity?>
 }
 
-class DefaultMushroomRepository(
+@Singleton
+class DefaultMushroomRepository @Inject constructor(
     private val mushroomDao: MushroomDao
 ) : MushroomRepository {
 
@@ -28,6 +31,6 @@ class DefaultMushroomRepository(
 
     override fun getMushroomById(id: Int): Flow<MushroomEntity?> =
         mushroomDao.getMushroomById(id)
-
 }
+
 

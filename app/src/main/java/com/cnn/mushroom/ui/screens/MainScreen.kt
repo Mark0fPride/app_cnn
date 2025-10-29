@@ -1,29 +1,12 @@
 package com.cnn.mushroom.ui.screens
 
 import android.app.Activity
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.cnn.mushroom.ui.theme.CNNTheme
 import com.cnn.mushroom.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,39 +23,64 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
+
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-
 
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.cnn.mushroom.MyApplication
 import com.cnn.mushroom.classifyMushroom
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.io.IOException
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NavController
+
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     modifier: Modifier = Modifier,
-    onNavigateToSearch: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    viewModel: MushroomViewModel = hiltViewModel(),
+    navController: NavController,
 ) {
     val activity = LocalView.current.context as Activity
     var showPermanentlyDeniedDialog by remember { mutableStateOf(false) }
@@ -83,21 +91,25 @@ fun MainScreen(
 
     val context = LocalContext.current
     val photoState = rememberPhotoState()
+    var photoUpload by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        photoState.onPhotoTaken(success)
+        photoState.onPhotoTaken(success, viewModel)
     }
 
     val launcherStorage = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
-        photoState.onPhotoUpload(uri)
+        photoState.onPhotoUpload(uri, viewModel)
     }
 
     Scaffold(
-        topBar = { TopAppBar() }
+        topBar = { TopAppBar(
+            onNavigateToSettings = {navController.navigate("user_setting")},
+            onNavigateToSearch = {navController.navigate("search_content")})
+        }
     ) { innerPadding ->
 
         if (showPermanentlyDeniedDialog) {
@@ -113,8 +125,11 @@ fun MainScreen(
                     callPermissionsRequester = false
                     if (neededPermission == Manifest.permission.CAMERA) {
                         isCameraPermissionGranted = true
+                        val uri = photoState.prepareNewPhoto(context)
+                        launcher.launch(uri)
                     } else {
                         isStoragePermissionGranted = true
+                        launcherStorage.launch("image/*")
                     }
                 },
                 onPermissionDenied = { callPermissionsRequester = false },
@@ -152,6 +167,7 @@ fun MainScreen(
                             contentDescription = "Photo Preview",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
+                                .clickable{photoUpload = true}
                         )
                     }
 
@@ -162,46 +178,67 @@ fun MainScreen(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
+                    if(photoUpload){
+                        Dialog(onDismissRequest = { photoUpload = false }) {
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                                modifier = Modifier.fillMaxWidth(0.9f)
+                            ) {
 
-                    // Przyciski akcji
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Button(
-                            onClick = {
-                                callPermissionsRequester = !isCameraPermissionGranted
-                                if (!isCameraPermissionGranted)
-                                    neededPermission = Manifest.permission.CAMERA
-                                else {
-                                    val uri = photoState.prepareNewPhoto(context)
-                                    launcher.launch(uri)
+                                Row(
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically,
+
+                                    modifier = Modifier
+                                        .padding(16.dp)
+                                        .fillMaxWidth(),
+                                ) {
+
+                                    IconButton(
+                                        onClick = {
+                                            callPermissionsRequester = !isCameraPermissionGranted
+                                            photoUpload = false
+                                            if (!isCameraPermissionGranted)
+                                                neededPermission = Manifest.permission.CAMERA
+                                            else {
+                                                val uri = photoState.prepareNewPhoto(context)
+                                                launcher.launch(uri)
+                                            }
+                                        },
+                                        modifier = Modifier.size(56.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CameraAlt,
+                                            contentDescription = "Take Photo",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+
+
+                                    IconButton(
+                                        onClick = {
+                                            callPermissionsRequester = !isStoragePermissionGranted
+                                            photoUpload = false
+                                            if (!isStoragePermissionGranted)
+                                                neededPermission = Manifest.permission.READ_MEDIA_IMAGES
+                                            else {
+                                                launcherStorage.launch("image/*")
+                                            }
+                                        },
+                                        modifier = Modifier.size(56.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FileUpload,
+                                            contentDescription = "Upload Photo",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(0.7f)
-                        ) { Text("Take Photo") }
-
-                        Button(
-                            onClick = {
-                                callPermissionsRequester = !isStoragePermissionGranted
-                                if (!isStoragePermissionGranted)
-                                    neededPermission = Manifest.permission.READ_MEDIA_IMAGES
-                                else {
-                                    launcherStorage.launch("image/*")
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(0.7f)
-                        ) { Text("Upload Photo") }
-
-                        Button(
-                            onClick = onNavigateToSearch,
-                            modifier = Modifier.fillMaxWidth(0.7f)
-                        ) { Text("Go to Search") }
-
-                        Button(
-                            onClick = onNavigateToSettings,
-                            modifier = Modifier.fillMaxWidth(0.7f)
-                        ) { Text("Go to Settings") }
+                            }
+                        }
                     }
                 }
             }
@@ -211,23 +248,21 @@ fun MainScreen(
 
 
 
+
+
 fun isPermissionGranted(permission: String, context: Context): Boolean {
     return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 }
 
-fun onImageSaved(path: String){
+fun onImageSaved(path: String, viewModel: MushroomViewModel){
     //send to ML model
     var mushroom = classifyMushroom(path)
-    val repository = MyApplication.instance.repository
-
-    CoroutineScope(Dispatchers.IO).launch {
-        repository.addMushroom(mushroom)
-    }
+    viewModel.addMushroom(mushroom)
 }
 
 
-fun onImageUpload(path: String){
-    //TO DO
+fun onImageUpload(path: String,viewModel: MushroomViewModel){
+    onImageSaved(path,viewModel)
 }
 
 class PhotoState {
@@ -257,19 +292,19 @@ class PhotoState {
     }
 
 
-    fun onPhotoTaken(success: Boolean) {
+    fun onPhotoTaken(success: Boolean, viewModel: MushroomViewModel) {
         if (success) {
             displayPhoto = currentPhotoUri
-            currentPhotoUri?.toString()?.let { onImageSaved(it) }
+            currentPhotoUri?.toString()?.let { onImageSaved(it, viewModel) }
         }
         currentPhotoUri = null
     }
 
-    fun onPhotoUpload(uri: Uri?){
+    fun onPhotoUpload(uri: Uri?, viewModel: MushroomViewModel){
         if(uri!=null){
             currentPhotoUri = uri
             displayPhoto = currentPhotoUri
-            currentPhotoUri?.toString()?.let { onImageUpload(it) }
+            currentPhotoUri?.toString()?.let { onImageUpload(it, viewModel) }
         }
         currentPhotoUri = null
 

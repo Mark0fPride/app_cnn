@@ -34,6 +34,7 @@ import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cnn.mushroom.R
+import com.cnn.mushroom.data.NameDisplayFormat
 
 
 @Composable
@@ -45,7 +46,8 @@ fun SearchScreen(navCon: NavController, viewModel: MushroomViewModel = hiltViewM
         deleteAllMushroom = {viewModel.deleteAllMushrooms()},
         onNavigation = {navCon.navigate("search_content/$it")},
         onNavigateToSettings = {navCon.navigate("user_setting")},
-        onNavigateToSearch = {}
+        onNavigateToSearch = {},
+        viemodel = viewModel
 
 
     )
@@ -56,9 +58,10 @@ fun MushroomList(
     mushrooms: List<MushroomEntity>,
     deleteAllMushroom: () -> Unit,
     onNavigation: (id: Int) -> Unit,
-    onNavigateToSettings: () ->Unit,
-    onNavigateToSearch: () ->Unit,
-    modifier: Modifier = Modifier
+    onNavigateToSettings: () -> Unit,
+    onNavigateToSearch: () -> Unit,
+    modifier: Modifier = Modifier,
+    viemodel: MushroomViewModel
 ) {
     Scaffold(
         topBar = { TopAppBar(
@@ -85,8 +88,9 @@ fun MushroomList(
             ) {
                 items(mushrooms) { mushroom ->
                     MushroomItem(
-                        onNavigation = onNavigation,
                         mushroom = mushroom,
+                        onNavigation = onNavigation,
+                        viewModel = viemodel,
                     )
                 }
             }
@@ -98,7 +102,8 @@ fun MushroomList(
 fun MushroomItem(
     mushroom: MushroomEntity,
     onNavigation: (mushroomId: Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: MushroomViewModel
 ) {
     Card(
         modifier = modifier
@@ -115,18 +120,23 @@ fun MushroomItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             MushroomIcon(mushroom)
-
+            val settings = viewModel.userSettings.collectAsState().value
+            val names = getDisplayNames(
+                scientificName = mushroom.name,
+                commonName = viewModel.getCommonName(mushroom.name),
+                format = settings.nameDisplayFormat
+            )
             Column(
                 modifier = Modifier
                     .padding(start = 12.dp)
             ) {
                 Text(
-                    text = mushroom.name,
+                    text = names.title,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Science Name",
+                    text = names.subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -149,7 +159,7 @@ fun MushroomIcon(
     val painter = rememberAsyncImagePainter(
         ImageRequest.Builder(LocalContext.current)
             .data(uri)
-            .crossfade(true) // płynne wczytywanie obrazków
+            .crossfade(true)
             .build()
     )
 
@@ -164,4 +174,28 @@ fun MushroomIcon(
 }
 
 
+data class DisplayNames(
+    val title: String,
+    val subtitle: String
+)
 
+fun getDisplayNames(
+    scientificName: String,
+    commonName: String,
+    format: NameDisplayFormat
+): DisplayNames {
+    return when (format) {
+        NameDisplayFormat.SCIENTIFIC -> DisplayNames(
+            title = scientificName,
+            subtitle = commonName
+        )
+        NameDisplayFormat.NON_SCIENTIFIC -> DisplayNames(
+            title = commonName,
+            subtitle = scientificName
+        )
+        NameDisplayFormat.BOTH -> DisplayNames(
+            title = commonName,
+            subtitle = scientificName
+        )
+    }
+}

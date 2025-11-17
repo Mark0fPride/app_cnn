@@ -32,6 +32,7 @@ interface MushroomRepository {
     fun getMushroomById(id: Int): Flow<MushroomEntity?>
     fun getRecentMushroom(): Flow<MushroomEntity?>
     fun classifyMushroom(imagePath: Uri): Flow<MushroomEntity>
+    fun getCommonName(scientificName: String): String
 }
 
 @Singleton
@@ -39,6 +40,68 @@ class DefaultMushroomRepository @Inject constructor(
     private val mushroomDao: MushroomDao,
     @ApplicationContext private val context: Context
 ) : MushroomRepository {
+
+    private val classNames: List<String>
+    private val mushroomTranslations: Map<String, String>
+    private val currentLanguageCode = context.resources.configuration.locales[0].language // np. "pl" lub "en"
+
+    private val SCIENTIFIC_NAME_INDEX = 0
+    private val POLISH_NAME_INDEX = 1
+    private val ENGLISH_NAME_INDEX = 2
+
+    init {
+        classNames = loadClassNames()
+        mushroomTranslations = loadMushroomTranslations(currentLanguageCode)
+    }
+
+    private fun loadMushroomTranslations(languageCode: String): Map<String, String> {
+        val map = mutableMapOf<String, String>()
+
+
+        val targetIndex = when (languageCode) {
+            "pl" -> POLISH_NAME_INDEX
+            "en" -> ENGLISH_NAME_INDEX
+            else -> ENGLISH_NAME_INDEX
+        }
+
+        try {
+            val inputStream = context.assets.open("mushrooms_translate.csv")
+            val reader = inputStream.bufferedReader()
+
+            reader.readLine()
+
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                val tokens = line?.split(",")
+
+                if (tokens != null && tokens.size > targetIndex) {
+                    val scientificName = tokens[SCIENTIFIC_NAME_INDEX].trim()
+                    val commonName = tokens[targetIndex].trim()
+
+                    if (scientificName.isNotEmpty()) {
+                        map[scientificName] = commonName
+                    }
+                }
+            }
+            reader.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return map
+    }
+
+    override fun getCommonName(scientificName: String): String {
+        val targetName = scientificName.trim()
+        return mushroomTranslations[targetName] ?: scientificName
+    }
+
+    private fun loadClassNames(): List<String> {
+        return context.assets.open("mushrooms.txt").bufferedReader().use {
+            it.readText()
+        }.split("\n")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+    }
 
     // --- DAO methods ---
     override fun getAllMushrooms(): Flow<List<MushroomEntity>> =
@@ -59,15 +122,13 @@ class DefaultMushroomRepository @Inject constructor(
     override fun getRecentMushroom(): Flow<MushroomEntity?> =
         mushroomDao.getRecentMushroom()
 
+
     override fun classifyMushroom(imagePath: Uri): Flow<MushroomEntity> = flow {
         try {
             Log.d("MushroomClassification", "Starting mushroom classification for image: $imagePath")
 
             // Otwieranie pliku z nazwami klas
             Log.d("MushroomClassification", "Loading class names from mushroom.txt")
-            val classNames: Array<String> = context.assets.open("mushrooms.txt").bufferedReader().use {
-                it.readText()
-            }.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.toTypedArray()
 
             Log.d("MushroomClassification", "Loaded ${classNames.size} class names: ${classNames.joinToString(", ")}")
 

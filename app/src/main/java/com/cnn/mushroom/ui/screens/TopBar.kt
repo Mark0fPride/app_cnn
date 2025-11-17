@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.*
 fun TopAppBar(
     onNavigateToSettings: () -> Unit,
     onNavigateToSearch: () -> Unit,
-    modifier: Modifier = Modifier
 ) {
     CenterAlignedTopAppBar(
         title = {
@@ -81,8 +80,7 @@ fun TopAppBar(
                     }
                 }
             }
-        },
-        modifier = modifier
+        }
     )
 }
 

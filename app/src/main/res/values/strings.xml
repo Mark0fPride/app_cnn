@@ -32,4 +32,16 @@
     <string name="language_english">English</string>
 
 
+    <string name="settings_timestamp">Show Timestamp</string>
+    <string name="format_name_title">Name Display Format</string>
+    <string name="format_name_scientific">Scientific Name</string>
+    <string name="format_name_non_scientific">Common Name</string>
+    <string name="format_name_both">Both (Scientific and Common)</string>
+
+    <string name="format_time_title">Date/Time Display Format</string>
+    <string name="format_time_month_year">Month, Year (MMMM, yyyy)</string>
+    <string name="format_time_day_month_year">Day/Month/Year (dd/MM/yyyy)</string>
+    <string name="format_time_time_day_month_year">Time/Day/Month/Year (HH:mm:ss dd/MM/yyyy)</string>
+
+
 </resources>

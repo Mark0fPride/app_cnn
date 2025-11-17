@@ -22,10 +22,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,6 +36,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import com.cnn.mushroom.MyApplication
 import com.cnn.mushroom.R
+import com.cnn.mushroom.data.formatMushroomName
+import com.cnn.mushroom.data.formatTimestamp
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,8 +48,10 @@ fun MushroomDetailScreen(
 ) {
     val mushroomState = viewModel.getMushroomById(mushroomId)
         .collectAsState(initial = null)
-
     val mushroom = mushroomState.value
+
+    val settings by viewModel.userSettings.collectAsState()
+    val context = LocalContext.current
 
     if (mushroom != null) {
         LazyColumn(
@@ -82,13 +88,32 @@ fun MushroomDetailScreen(
                         .padding(horizontal = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    val displayName = formatMushroomName(
+                        commonName = viewModel.getCommonName(mushroom.name),
+                        scientificName = mushroom.name,
+                        format = settings.nameDisplayFormat
+                    )
+
                     Text(
-                        text = mushroom.name,
+                        text = displayName,
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    InfoRow(label = stringResource(id = R.string.timestamp), value = mushroom.timestamp.toString())
+                    // 2. Warunkowe wyświetlanie daty/czasu
+                    if (settings.displayTimestamp) {
+                        val formattedTime = formatTimestamp(
+                            timestamp = mushroom.timestamp,
+                            format = settings.timeDisplayFormat,
+                            context = context
+                        )
+                        InfoRow(
+                            label = stringResource(id = R.string.timestamp),
+                            value = formattedTime
+                        )
+                    }
+
+                    // 3. Pozostałe InfoRow pozostają bez zmian
                     InfoRow(label = stringResource(id = R.string.confidence_score), value = mushroom.confidenceScore?.toString() ?: "Unknown")
                     InfoRow(label = stringResource(id = R.string.is_edible), value = mushroom.isEdible?.let { if (it) stringResource(id = R.string.yes) else stringResource(id = R.string.no) } ?: "Unknown")
                 }

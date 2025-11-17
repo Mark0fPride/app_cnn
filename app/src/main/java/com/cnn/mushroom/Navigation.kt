@@ -33,7 +33,6 @@ fun MainNavigation() {
 
         composable("main_content") {
             MainScreen(
-                modifier = Modifier.padding(16.dp),
                 navController = navController,
                 viewModel = mushroomViewModel
             )
@@ -41,7 +40,6 @@ fun MainNavigation() {
 
         composable("user_setting") {
             UserSettingScreen(
-                modifier = Modifier.padding(16.dp),
                 viewModel = mushroomViewModel
             )
         }

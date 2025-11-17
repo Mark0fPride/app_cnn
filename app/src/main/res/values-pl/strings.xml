@@ -31,6 +31,16 @@
     <string name="language_english">English</string>
 
 
+    <string name="settings_timestamp">Wyświetlaj Datę/Czas Zapisania</string>
 
+    <string name="format_name_title">Format Wyświetlania Nazwy</string>
+    <string name="format_name_scientific">Naukowa (Scientific)</string>
+    <string name="format_name_non_scientific">Potoczna (Non-scientific)</string>
+    <string name="format_name_both">Obie (Naukowa i Potoczna)</string>
+
+    <string name="format_time_title">Format Wyświetlania Daty/Czasu</string>
+    <string name="format_time_month_year">Miesiąc, Rok (MMMM, yyyy)</string>
+    <string name="format_time_day_month_year">Dzień/Miesiąc/Rok (dd/MM/yyyy)</string>
+    <string name="format_time_time_day_month_year">Czas/Dzień/Miesiąc/Rok (HH:mm:ss dd/MM/yyyy)</string>
 
 </resources>

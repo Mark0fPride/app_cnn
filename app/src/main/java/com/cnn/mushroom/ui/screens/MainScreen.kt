@@ -69,6 +69,8 @@ import java.util.Locale
 import java.io.IOException
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cnn.mushroom.data.formatMushroomName
+import com.cnn.mushroom.data.formatTimestamp
 
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -88,6 +90,7 @@ fun MainScreen(
 
     val photoState = PhotoState()
     val context = LocalContext.current
+    val settings = viewModel.userSettings.collectAsState().value
     var photoUpload by remember { mutableStateOf(false) }
 
     val classificationState by viewModel.classificationState.collectAsState()
@@ -222,6 +225,13 @@ fun MainScreen(
 
                             is ClassificationState.Success -> {
                                 val m = (classificationState as ClassificationState.Success).mushroom
+
+                                val displayName = formatMushroomName(
+                                    scientificName = m.name,
+                                    commonName = viewModel.getCommonName(m.name),
+                                    format = settings.nameDisplayFormat
+                                )
+
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -229,15 +239,26 @@ fun MainScreen(
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     Text(
-                                        text = m.name,
+                                        // Użycie sformatowanej nazwy
+                                        text = displayName,
                                         style = MaterialTheme.typography.headlineMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
 
-                                    InfoRow(
-                                        label = stringResource(id = R.string.timestamp),
-                                        value = m.timestamp.toString()
-                                    )
+                                    // Warunkowe wyświetlanie daty/czasu
+                                    if (settings.displayTimestamp) {
+                                        val formattedTime = formatTimestamp(
+                                            timestamp = m.timestamp,
+                                            format = settings.timeDisplayFormat,
+                                            context = context
+                                        )
+                                        InfoRow(
+                                            label = stringResource(id = R.string.timestamp),
+                                            value = formattedTime
+                                        )
+                                    }
+
+                                    // Pozostałe InfoRow
                                     InfoRow(
                                         label = stringResource(id = R.string.confidence_score),
                                         value = m.confidenceScore?.toString() ?: "Unknown"

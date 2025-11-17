@@ -4,35 +4,44 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cnn.mushroom.data.MushroomEntity
 import com.cnn.mushroom.data.MushroomRepository
+import com.cnn.mushroom.data.UserSettings
+import com.cnn.mushroom.data.repository.UserSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class MushroomViewModel @Inject constructor(
     private val mushroomRepository: MushroomRepository,
+    private val userSettingsRepository: UserSettingsRepository
 ) : ViewModel() {
 
     private val _classificationState = MutableStateFlow<ClassificationState>(ClassificationState.Idle)
     val classificationState: StateFlow<ClassificationState> = _classificationState.asStateFlow()
 
-//    private val _userSettings = MutableStateFlow(UserSettings.DEFAULT)
-//    val userSettings: StateFlow<UserSettings> = _userSettings.asStateFlow()
-//
-//    fun updateSettings(newSettings: UserSettings) {
-//        // Użycie metody 'value' w MutableStateFlow do natychmiastowej aktualizacji
-//        _userSettings.value = newSettings
-//
-//        // Alternatywnie, jeśli aktualizacja zależy od bieżącej wartości, użyjemy 'update':
-//        // _userSettings.update { currentSettings ->
-//        //     newSettings // W tym przypadku po prostu nadpisujemy
-//        // }
-//    }
+    val userSettings: StateFlow<UserSettings> = userSettingsRepository.userSettingsFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = UserSettings.DEFAULT
+        )
+
+    fun updateSettings(newSettings: UserSettings) {
+        viewModelScope.launch {
+            userSettingsRepository.saveSettings(newSettings)
+        }
+    }
+
+    fun getCommonName(scientificName: String): String {
+       return mushroomRepository.getCommonName(scientificName)
+    }
 
     fun getAllMushrooms(): Flow<List<MushroomEntity>> = mushroomRepository.getAllMushrooms()
     fun deleteAllMushrooms() {

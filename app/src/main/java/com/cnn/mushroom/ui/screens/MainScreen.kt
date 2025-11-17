@@ -13,13 +13,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import android.Manifest
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-
 import android.provider.MediaStore
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -59,19 +61,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
-
+import androidx.core.net.toUri
 import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
-
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
 import java.io.IOException
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-
-
 
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -89,27 +86,46 @@ fun MainScreen(
     var isStoragePermissionGranted by remember { mutableStateOf(isPermissionGranted(Manifest.permission.READ_MEDIA_IMAGES, activity)) }
     var neededPermission = ""
 
+    val photoState = PhotoState()
     val context = LocalContext.current
-    val photoState = rememberPhotoState()
     var photoUpload by remember { mutableStateOf(false) }
 
+    val classificationState by viewModel.classificationState.collectAsState()
 
-    val launcher = rememberLauncherForActivityResult(
+    var currentPhotoID by remember { mutableStateOf<Long?>(null) }
+
+    val launcherCamera = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        photoState.onPhotoTaken(success, viewModel)
+        photoState.onPhotoTaken(success, currentPhotoID, viewModel)
     }
 
     val launcherStorage = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        photoState.onPhotoUpload(uri, viewModel)
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val contentResolver = context.contentResolver
+
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                photoState.onPhotoUpload(uri, viewModel)
+
+            } catch (e: SecurityException) {
+                Log.e("Upload", "Błąd utrwalenia uprawnień dla URI z Galerii: $uri", e)
+                photoState.onPhotoUpload(uri, viewModel)
+            }
+        }
     }
 
     Scaffold(
-        topBar = { TopAppBar(
-            onNavigateToSettings = {navController.navigate("user_setting")},
-            onNavigateToSearch = {navController.navigate("search_content")})
+        topBar = {
+            TopAppBar(
+                onNavigateToSettings = { navController.navigate("user_setting") },
+                onNavigateToSearch = { navController.navigate("search_content") }
+            )
         }
     ) { innerPadding ->
 
@@ -127,7 +143,9 @@ fun MainScreen(
                     if (neededPermission == Manifest.permission.CAMERA) {
                         isCameraPermissionGranted = true
                         val uri = photoState.prepareNewPhoto(context)
-                        launcher.launch(uri)
+                        val id = getPhotoId(context = context, uri = uri)
+                        currentPhotoID = id
+                        launcherCamera.launch(uri)
                     } else {
                         isStoragePermissionGranted = true
                         launcherStorage.launch("image/*")
@@ -151,24 +169,37 @@ fun MainScreen(
                         .padding(horizontal = 16.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    // Podgląd zdjęcia
                     Box(
                         modifier = Modifier
                             .size(300.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .border(2.dp, Color.Gray, RoundedCornerShape(16.dp))
                     ) {
-                        val painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(LocalContext.current)
-                                .data(photoState.displayPhoto)
-                                .build()
-                        )
+                        val painter = when (classificationState) {
+                            is ClassificationState.Idle -> rememberAsyncImagePainter(R.drawable.logo_background)
+
+                            is ClassificationState.Loading -> rememberAsyncImagePainter(R.drawable.logo_background)
+
+                            is ClassificationState.Success -> {
+                                val mushroom = (classificationState as ClassificationState.Success).mushroom
+                                if (context.contentResolver.openInputStream(mushroom.imagePath.toUri())?.use { inputStream ->
+                                        true
+                                    } == true) {
+                                    rememberAsyncImagePainter(mushroom.imagePath)
+                                } else {
+                                    rememberAsyncImagePainter(R.drawable.ic_launcher_foreground)
+                                }
+                            }
+                            is ClassificationState.Error -> rememberAsyncImagePainter(R.drawable.logo_background)
+                        }
+
                         Image(
                             painter = painter,
-                            contentDescription = "Photo Preview",
+                            contentDescription = stringResource(id = R.string.photo_preview),
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                                .clickable{photoUpload = true}
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable { photoUpload = true }
                         )
                     }
 
@@ -180,16 +211,17 @@ fun MainScreen(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
 
-                    val isComputing by viewModel.isComputing.collectAsState()
-                    val mushroom by viewModel.recentMushroom.collectAsState()
-
                     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                        when (classificationState) {
+                            is ClassificationState.Loading -> {
+                                Text(
+                                    stringResource(id = R.string.computing),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
 
-                        if (photoState.displayPhoto != R.drawable.logo_background && isComputing) {
-                            Text("Computing...", style = MaterialTheme.typography.bodyLarge)
-
-                        } else if (mushroom != null) {
-                            mushroom?.let { m ->
+                            is ClassificationState.Success -> {
+                                val m = (classificationState as ClassificationState.Success).mushroom
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -202,19 +234,38 @@ fun MainScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
 
-                                    InfoRow(label = "Timestamp", value = m.timestamp.toString())
                                     InfoRow(
-                                        label = "Confidence Score",
+                                        label = stringResource(id = R.string.timestamp),
+                                        value = m.timestamp.toString()
+                                    )
+                                    InfoRow(
+                                        label = stringResource(id = R.string.confidence_score),
                                         value = m.confidenceScore?.toString() ?: "Unknown"
                                     )
                                     InfoRow(
-                                        label = "Is Edible",
-                                        value = m.isEdible?.let { if (it) "Yes" else "No" } ?: "Unknown"
+                                        label = stringResource(id = R.string.is_edible),
+                                        value = m.isEdible?.let {
+                                            if (it) stringResource(id = R.string.yes)
+                                            else stringResource(id = R.string.no)
+                                        } ?: "Unknown"
                                     )
                                 }
                             }
-                        } else {
-                            Text("Take a photo to classify!", style = MaterialTheme.typography.bodyMedium)
+
+                            is ClassificationState.Error -> {
+                                Text(
+                                    text = (classificationState as ClassificationState.Error).message,
+                                    color = Color.Red,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            ClassificationState.Idle -> {
+                                Text(
+                                    stringResource(id = R.string.take_photo),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
                     }
 
@@ -229,7 +280,6 @@ fun MainScreen(
                                 Row(
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically,
-
                                     modifier = Modifier
                                         .padding(16.dp)
                                         .fillMaxWidth(),
@@ -243,19 +293,20 @@ fun MainScreen(
                                                 neededPermission = Manifest.permission.CAMERA
                                             else {
                                                 val uri = photoState.prepareNewPhoto(context)
-                                                launcher.launch(uri)
+                                                val id = getPhotoId(context = context, uri = uri)
+                                                currentPhotoID = id
+                                                launcherCamera.launch(uri)
                                             }
                                         },
                                         modifier = Modifier.size(56.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.CameraAlt,
-                                            contentDescription = "Take Photo",
+                                            contentDescription = stringResource(id=R.string.take_photo_content),
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.fillMaxSize()
                                         )
                                     }
-
 
                                     IconButton(
                                         onClick = {
@@ -271,7 +322,7 @@ fun MainScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.FileUpload,
-                                            contentDescription = "Upload Photo",
+                                            contentDescription = stringResource(id = R.string.upload_photo_content),
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.fillMaxSize()
                                         )
@@ -285,20 +336,27 @@ fun MainScreen(
         }
     }
 }
-
-
 fun isPermissionGranted(permission: String, context: Context): Boolean {
     return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 }
 
+fun getPhotoId(context: Context, uri: Uri): Long? {
+    context.contentResolver.query(
+        uri,
+        arrayOf(MediaStore.Images.Media._ID),
+        null,
+        null,
+        null
+    )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            return cursor.getLong(idColumn)
+        }
+    }
+    return null
+}
 
 class PhotoState {
-    var currentPhotoUri: Uri? by mutableStateOf(null)
-        private set
-
-    var displayPhoto: Any? by mutableStateOf(R.drawable.logo_background)
-        private set
-
 
     fun prepareNewPhoto(context: Context): Uri {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -307,7 +365,7 @@ class PhotoState {
         val contentValues = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CNN") // 👈 visible in Gallery
+            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CNN")
         }
 
         val uri = context.contentResolver.insert(
@@ -315,45 +373,28 @@ class PhotoState {
             contentValues
         )
 
-        currentPhotoUri = uri
         return uri ?: throw IOException("Failed to create MediaStore entry for new photo")
     }
 
+    fun onPhotoTaken(success: Boolean, savedId: Long?, viewModel: MushroomViewModel) {
 
-    fun onPhotoTaken(success: Boolean, viewModel: MushroomViewModel) {
-        if (success) {
-            displayPhoto = currentPhotoUri
-            currentPhotoUri?.toString()?.let { path ->
-                viewModel.classifyPhoto(path)
-            }
+        if (success && savedId != null) {
+            val permanentUri = ContentUris.withAppendedId(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                savedId
+            )
+            viewModel.classifyMushroom(permanentUri)
         }
-        currentPhotoUri = null
     }
 
-
-    fun onPhotoUpload(uri: Uri?, viewModel: MushroomViewModel){
-        if(uri!=null){
-            currentPhotoUri = uri
-            displayPhoto = currentPhotoUri
-            currentPhotoUri?.toString()?.let { path ->
-                viewModel.classifyPhoto(path)
-            }
+    fun onPhotoUpload(uri: Uri?, viewModel: MushroomViewModel) {
+        if (uri != null) {
+            viewModel.classifyMushroom(uri)
         }
-        currentPhotoUri = null
-
     }
+
 }
 
-@Composable
-fun rememberPhotoState() = remember { PhotoState() }
 
-//@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-//@Preview(showBackground = true)
-//@Composable
-//fun MainScreenPreview(){
-//    CNNTheme {
-//        MainScreen(modifier = Modifier)
-//    }
-//}
 
 

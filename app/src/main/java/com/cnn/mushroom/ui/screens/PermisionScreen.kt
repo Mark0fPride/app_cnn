@@ -1,5 +1,6 @@
 package com.cnn.mushroom.ui.screens
 
+import com.cnn.mushroom.R
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -17,7 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-
+import androidx.compose.ui.res.stringResource
 
 
 @Composable
@@ -58,10 +59,13 @@ fun OnPermanentlyDeniedDialog(
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Brak uprawnień") },
+        title = { Text(stringResource(id = R.string.permission_denied_title)) },
         text = {
             Text(
-                "Aby korzystać z tej funkcji, przejdź do ustawień i przyznaj wymagane uprawnienia: $missingPermission"
+                stringResource(
+                    R.string.permission_denied_message,
+                    missingPermission
+                )
             )
         },
         confirmButton = {
@@ -74,12 +78,12 @@ fun OnPermanentlyDeniedDialog(
                     onDismiss()
                 }
             ) {
-                Text(text = "Strona Ustawień")
+                Text(stringResource(R.string.permission_denied_open_settings))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "Zamknij")
+                Text(stringResource(R.string.permission_denied_close))
             }
         }
     )

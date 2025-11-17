@@ -7,8 +7,15 @@ import androidx.activity.compose.setContent
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.isSystemInDarkTheme
+
+import com.cnn.mushroom.ui.theme.CNNTheme
 import dagger.hilt.android.AndroidEntryPoint
+
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.compose.runtime.SideEffect
+import androidx.compose.material3.MaterialTheme
+
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -17,11 +24,23 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MaterialTheme {
+            val darkTheme = isSystemInDarkTheme()
+            val systemUiController = rememberSystemUiController()
+
+            CNNTheme(darkTheme = darkTheme) {
+                val backgroundColor = MaterialTheme.colorScheme.background
+
+                SideEffect {
+                    systemUiController.setSystemBarsColor(
+                        color = backgroundColor,
+                        darkIcons = !darkTheme
+                    )
+                }
+
                 MainNavigation()
             }
         }
-    }
 
+    }
 }
 

@@ -12,15 +12,15 @@ interface MushroomDao{
     @Query("SELECT * FROM mushrooms")
     fun getAllMushrooms(): Flow<List<MushroomEntity>>
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    fun addMushroom(mushroomEntity: MushroomEntity)
+    suspend fun addMushroom(mushroomEntity: MushroomEntity)
     @Query("Delete FROM mushrooms")
-    fun deleteAllMushrooms()
+    suspend fun deleteAllMushrooms()
     @Delete
     fun deleteMushroom(mushroomEntity: MushroomEntity)
     @Query("SELECT * FROM mushrooms WHERE id = :id")
     fun getMushroomById(id: Int): Flow<MushroomEntity?>
     @Query("SELECT * FROM mushrooms ORDER BY timestamp DESC LIMIT 1")
-    fun getRecentMushroom(): Flow<MushroomEntity>
+    fun getRecentMushroom(): Flow<MushroomEntity?>
 }
 
 

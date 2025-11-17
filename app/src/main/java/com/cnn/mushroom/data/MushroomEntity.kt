@@ -8,7 +8,7 @@ data class MushroomEntity(
 
     val imagePath: String,
     val name: String,
-    val timestamp: Int,
+    val timestamp: Long,
     val confidenceScore: Float? = null,
     val isEdible: Boolean? = null
 ) {

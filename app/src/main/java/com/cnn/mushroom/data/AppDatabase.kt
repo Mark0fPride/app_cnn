@@ -9,7 +9,6 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 
 @Database(entities = [MushroomEntity::class], version = 1, exportSchema = false) // Zmieniono wersję na 1
-@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun mushroomDao(): MushroomDao
 
@@ -33,10 +32,3 @@ abstract class AppDatabase : RoomDatabase() {
     }
 }
 
-class Converters {
-    @TypeConverter
-    fun fromUri(uri: Uri?): String? = uri?.toString()
-
-    @TypeConverter
-    fun toUri(uriString: String?): Uri? = uriString?.let { Uri.parse(it) }
-}

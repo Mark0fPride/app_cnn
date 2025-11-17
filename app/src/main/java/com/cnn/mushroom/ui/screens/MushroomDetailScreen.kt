@@ -1,12 +1,12 @@
 package com.cnn.mushroom.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,20 +26,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
-
 import com.cnn.mushroom.MyApplication
+import com.cnn.mushroom.R
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MushroomDetailScreen(
     mushroomId: Int,
+    viewModel: MushroomViewModel = hiltViewModel() // <- Hilt wstrzykuje ViewModel
 ) {
-    val repository = MyApplication.instance.repository
-    val mushroomState = repository.getMushroomById(mushroomId)
+    val mushroomState = viewModel.getMushroomById(mushroomId)
         .collectAsState(initial = null)
 
     val mushroom = mushroomState.value
@@ -59,6 +62,7 @@ fun MushroomDetailScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    Log.d("MushroomDetailScreen", "Mushroom image path: ${mushroom.imagePath}")
                     Image(
                         painter = rememberAsyncImagePainter(mushroom.imagePath),
                         contentDescription = mushroom.name,
@@ -84,9 +88,9 @@ fun MushroomDetailScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    InfoRow(label = "Timestamp", value = mushroom.timestamp.toString())
-                    InfoRow(label = "Confidence Score", value = mushroom.confidenceScore?.toString() ?: "Unknown")
-                    InfoRow(label = "Is Edible", value = mushroom.isEdible?.let { if (it) "Yes" else "No" } ?: "Unknown")
+                    InfoRow(label = stringResource(id = R.string.timestamp), value = mushroom.timestamp.toString())
+                    InfoRow(label = stringResource(id = R.string.confidence_score), value = mushroom.confidenceScore?.toString() ?: "Unknown")
+                    InfoRow(label = stringResource(id = R.string.is_edible), value = mushroom.isEdible?.let { if (it) stringResource(id = R.string.yes) else stringResource(id = R.string.no) } ?: "Unknown")
                 }
             }
         }

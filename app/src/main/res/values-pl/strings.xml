@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">CNN</string>
+
+
+
+    <string name="photo_preview">Podgląd zdjęcia</string>
+    <string name="computing">Przetwarzanie…</string>
+    <string name="timestamp">Znacznik czasu</string>
+    <string name="confidence_score">Poziom pewności</string>
+    <string name="is_edible">Czy jadalne</string>
+    <string name="yes">Tak</string>
+    <string name="no">Nie</string>
+    <string name="take_photo">Zrób zdjęcie, aby sklasyfikować!</string>
+    <string name="take_photo_content">Zrób zdjęcie</string>
+    <string name="upload_photo_content">Prześlij zdjęcie</string>
+
+
+
+    <string name="permission_denied_title">Brak uprawnień</string>
+    <string name="permission_denied_message">Aby korzystać z tej funkcji, przejdź do ustawień i przyznaj wymagane uprawnienia: %1$s</string>
+    <string name="permission_denied_open_settings">Strona ustawień</string>
+    <string name="permission_denied_close">Zamknij</string>
+
+    <string name="delete_all">Usuń wszytsko</string>
+
+    <string name="settings_title">Ustawienia</string>
+    <string name="dark_mode_label">Tryb ciemny</string>
+    <string name="language_label">Język</string>
+
+    <string name="language_polish">Polski</string>
+    <string name="language_english">English</string>
+
+
+
+
+</resources>

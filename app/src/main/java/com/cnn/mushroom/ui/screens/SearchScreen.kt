@@ -28,15 +28,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cnn.mushroom.R
 
 
 @Composable
 fun SearchScreen(navCon: NavController, viewModel: MushroomViewModel = hiltViewModel(), modifier: Modifier) {
-    val mushrooms by viewModel.mushrooms.collectAsState()
+    val mushrooms by viewModel.getAllMushrooms().collectAsState(initial = emptyList())
 
     MushroomList(
         mushrooms = mushrooms,
@@ -75,7 +77,7 @@ fun MushroomList(
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
             ) {
-                Text("Delete All")
+                Text(stringResource(id=R.string.delete_all))
             }
 
             LazyColumn(

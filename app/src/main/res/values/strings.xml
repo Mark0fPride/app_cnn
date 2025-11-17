@@ -1,3 +1,35 @@
 <resources>
     <string name="app_name">CNN</string>
+
+
+    !-- main -- !
+
+    <string name="photo_preview">Photo Preview</string>
+    <string name="computing">Computing ....</string>
+    <string name="timestamp">Timestamp</string>
+    <string name="confidence_score">Confidence Score</string>
+    <string name="is_edible">Is Edible</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="take_photo">Take a photo to classify!</string>
+    <string name="take_photo_content">Take Photo</string>
+    <string name="upload_photo_content">Upload Photo</string>
+
+    !-- permission screen
+    <string name="permission_denied_title">Permission Denied</string>
+    <string name="permission_denied_message">To use this feature, go to settings and grant the required permission: %1$s</string>
+    <string name="permission_denied_open_settings">Settings Page</string>
+    <string name="permission_denied_close">Close</string>
+
+
+    <string name="delete_all">Delete all</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="dark_mode_label">Dark mode</string>
+    <string name="language_label">Language</string>
+
+    <string name="language_polish">Polish</string>
+    <string name="language_english">English</string>
+
+
 </resources>

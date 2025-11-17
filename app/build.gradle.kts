@@ -63,6 +63,14 @@ dependencies {
 
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
 
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.32.0")
+
+    //Pytorch
+
+    implementation("org.pytorch:pytorch_android_lite:2.1.0") // Użyj najnowszej wersji
+    implementation("org.pytorch:pytorch_android_torchvision_lite:2.1.0")
+
     // Room dependencies
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

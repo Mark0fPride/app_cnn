@@ -57,7 +57,12 @@ fun MainNavigation() {
             arguments = listOf(navArgument("mushroomId") { type = NavType.IntType })
         ) { backStackEntry ->
             val mushroomId = backStackEntry.arguments!!.getInt("mushroomId")
-            MushroomDetailScreen(mushroomId = mushroomId)
+            MushroomDetailScreen(
+                mushroomId = mushroomId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
     }
 

@@ -25,8 +25,12 @@ import androidx.compose.ui.platform.LocalContext
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -47,7 +51,8 @@ fun SearchScreen(navCon: NavController, viewModel: MushroomViewModel = hiltViewM
         onNavigation = {navCon.navigate("search_content/$it")},
         onNavigateToSettings = {navCon.navigate("user_setting")},
         onNavigateToSearch = {},
-        viemodel = viewModel
+        viewmodel = viewModel,
+        onDeleteClick = viewModel::deleteMushroom
 
 
     )
@@ -61,7 +66,8 @@ fun MushroomList(
     onNavigateToSettings: () -> Unit,
     onNavigateToSearch: () -> Unit,
     modifier: Modifier = Modifier,
-    viemodel: MushroomViewModel
+    viewmodel: MushroomViewModel,
+    onDeleteClick: (MushroomEntity) -> Unit
 ) {
     Scaffold(
         topBar = { TopAppBar(
@@ -90,7 +96,8 @@ fun MushroomList(
                     MushroomItem(
                         mushroom = mushroom,
                         onNavigation = onNavigation,
-                        viewModel = viemodel,
+                        viewModel = viewmodel,
+                        onDeleteClick = onDeleteClick
                     )
                 }
             }
@@ -103,6 +110,7 @@ fun MushroomItem(
     mushroom: MushroomEntity,
     onNavigation: (mushroomId: Int) -> Unit,
     modifier: Modifier = Modifier,
+    onDeleteClick: (MushroomEntity) -> Unit,
     viewModel: MushroomViewModel
 ) {
     Card(
@@ -139,6 +147,13 @@ fun MushroomItem(
                     text = names.subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = { onDeleteClick(mushroom) }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(id = R.string.delete_single),
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }

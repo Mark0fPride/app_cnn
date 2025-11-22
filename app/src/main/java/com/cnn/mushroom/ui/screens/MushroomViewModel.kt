@@ -49,7 +49,11 @@ class MushroomViewModel @Inject constructor(
             mushroomRepository.deleteAllMushrooms()
         }
     }
-    fun deleteMushroom(mushroomEntity: MushroomEntity) = mushroomRepository.deleteMushroom(mushroomEntity)
+    fun deleteMushroom(mushroom: MushroomEntity) {
+        viewModelScope.launch {
+            mushroomRepository.deleteMushroom(mushroom)
+        }
+    }
 
     fun getMushroomById(id: Int): Flow<MushroomEntity?> = mushroomRepository.getMushroomById(id)
 

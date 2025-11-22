@@ -28,7 +28,7 @@ interface MushroomRepository {
     fun getAllMushrooms(): Flow<List<MushroomEntity>>
     suspend fun addMushroom(mushroomEntity: MushroomEntity)
     suspend fun deleteAllMushrooms()
-    fun deleteMushroom(mushroomEntity: MushroomEntity)
+    suspend fun deleteMushroom(mushroomEntity: MushroomEntity)
     fun getMushroomById(id: Int): Flow<MushroomEntity?>
     fun getRecentMushroom(): Flow<MushroomEntity?>
     fun classifyMushroom(imagePath: Uri): Flow<MushroomEntity>
@@ -113,7 +113,7 @@ class DefaultMushroomRepository @Inject constructor(
     override suspend fun deleteAllMushrooms() =
         mushroomDao.deleteAllMushrooms()
 
-    override fun deleteMushroom(mushroomEntity: MushroomEntity) =
+    override suspend fun deleteMushroom(mushroomEntity: MushroomEntity) =
         mushroomDao.deleteMushroom(mushroomEntity)
 
     override fun getMushroomById(id: Int): Flow<MushroomEntity?> =

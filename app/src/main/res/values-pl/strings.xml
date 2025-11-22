@@ -43,4 +43,13 @@
     <string name="format_time_day_month_year">Dzień/Miesiąc/Rok (dd/MM/yyyy)</string>
     <string name="format_time_time_day_month_year">Czas/Dzień/Miesiąc/Rok (HH:mm:ss dd/MM/yyyy)</string>
 
+    <string name="display_settings">Wyświetlanie</string>
+    <string name="name_format_section">Format nazwy</string>
+    <string name="time_format_section">Format czasu</string>
+    <string name="settings_timestamp_description">Pokaż lub ukryj znacznik czasu obserwacji</string>
+    <string name="format_name_description">Wybierz preferowany sposób wyświetlania nazw grzybów</string>
+    <string name="format_time_description">Wybierz format wyświetlania daty i czasu obserwacji</string>
+    <string name="delete_single">Usuń</string>
+    <string name="delete_mushroom_button_label">Usuń</string>
+
 </resources>

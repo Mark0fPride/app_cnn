@@ -16,7 +16,7 @@ interface MushroomDao{
     @Query("Delete FROM mushrooms")
     suspend fun deleteAllMushrooms()
     @Delete
-    fun deleteMushroom(mushroomEntity: MushroomEntity)
+    suspend fun deleteMushroom(mushroomEntity: MushroomEntity)
     @Query("SELECT * FROM mushrooms WHERE id = :id")
     fun getMushroomById(id: Int): Flow<MushroomEntity?>
     @Query("SELECT * FROM mushrooms ORDER BY timestamp DESC LIMIT 1")

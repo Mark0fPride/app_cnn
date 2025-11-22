@@ -3,8 +3,12 @@ package com.cnn.mushroom.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,7 +21,6 @@ import com.cnn.mushroom.R
 import com.cnn.mushroom.data.NameDisplayFormat
 import com.cnn.mushroom.data.TimeDisplayFormat
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserSettingScreen(
@@ -28,7 +31,17 @@ fun UserSettingScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(stringResource(id = R.string.settings_title)) })
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        stringResource(id = R.string.settings_title),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
+            )
         },
         modifier = modifier.fillMaxSize()
     ) { paddingValues ->
@@ -37,37 +50,93 @@ fun UserSettingScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             // --- 1. Opcja Wyświetlania Czasu ---
-            DisplayTimestampSetting(
-                displayTimestamp = settings.displayTimestamp,
-                onCheckedChange = { isChecked ->
-                    viewModel.updateSettings(settings.copy(displayTimestamp = isChecked))
-                }
-            )
-            Divider(Modifier.padding(vertical = 8.dp))
+            SettingSection(
+                title = stringResource(id = R.string.display_settings),
+                icon = Icons.Outlined.Visibility
+            ) {
+                DisplayTimestampSetting(
+                    displayTimestamp = settings.displayTimestamp,
+                    onCheckedChange = { isChecked ->
+                        viewModel.updateSettings(settings.copy(displayTimestamp = isChecked))
+                    }
+                )
+            }
 
             // --- 2. Opcja Formatu Nazwy ---
-            NameFormatSetting(
-                currentFormat = settings.nameDisplayFormat,
-                onFormatSelected = { format ->
-                    viewModel.updateSettings(settings.copy(nameDisplayFormat = format))
-                }
-            )
-            Divider(Modifier.padding(vertical = 8.dp))
+            SettingSection(
+                title = stringResource(id = R.string.name_format_section),
+                icon = Icons.Outlined.Title
+            ) {
+                NameFormatSetting(
+                    currentFormat = settings.nameDisplayFormat,
+                    onFormatSelected = { format ->
+                        viewModel.updateSettings(settings.copy(nameDisplayFormat = format))
+                    }
+                )
+            }
 
             // --- 3. Opcja Formatu Czasu ---
-            TimeFormatSetting(
-                currentFormat = settings.timeDisplayFormat,
-                onFormatSelected = { format ->
-                    viewModel.updateSettings(settings.copy(timeDisplayFormat = format))
-                }
-            )
+            SettingSection(
+                title = stringResource(id = R.string.time_format_section),
+                icon = Icons.Outlined.Schedule
+            ) {
+                TimeFormatSetting(
+                    currentFormat = settings.timeDisplayFormat,
+                    onFormatSelected = { format ->
+                        viewModel.updateSettings(settings.copy(timeDisplayFormat = format))
+                    }
+                )
+            }
         }
     }
 }
 
+@Composable
+fun SettingSection(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+            // Header with icon and title
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Content
+            content()
+        }
+    }
+}
 
 @Composable
 fun DisplayTimestampSetting(
@@ -78,14 +147,32 @@ fun DisplayTimestampSetting(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!displayTimestamp) }
-            .padding(vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(stringResource(id = R.string.settings_timestamp), style = MaterialTheme.typography.bodyLarge)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(id = R.string.settings_timestamp),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(id = R.string.settings_timestamp_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
         Switch(
             checked = displayTimestamp,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         )
     }
 }
@@ -97,18 +184,28 @@ fun NameFormatSetting(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            stringResource(id=R.string.format_name_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 8.dp)
+            text = stringResource(id = R.string.format_name_title),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
+
+        Text(
+            text = stringResource(id = R.string.format_name_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+
         Column(Modifier.selectableGroup()) {
             NameDisplayFormat.entries.forEach { format ->
+                val isSelected = format == currentFormat
                 Row(
-                    Modifier
+                    modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
                         .selectable(
-                            selected = (format == currentFormat),
+                            selected = isSelected,
                             onClick = { onFormatSelected(format) },
                             role = Role.RadioButton
                         )
@@ -116,17 +213,22 @@ fun NameFormatSetting(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(
-                        selected = (format == currentFormat),
-                        onClick = null // Przechwycone przez kliknięcie Row
+                        selected = isSelected,
+                        onClick = null,
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = MaterialTheme.colorScheme.primary,
+                            unselectedColor = MaterialTheme.colorScheme.outline
+                        )
                     )
                     Spacer(Modifier.width(16.dp))
                     Text(
                         text = when (format) {
                             NameDisplayFormat.SCIENTIFIC -> stringResource(id = R.string.format_name_scientific)
-                            NameDisplayFormat.NON_SCIENTIFIC -> stringResource(id = R.string.format_name_non_scientific )
+                            NameDisplayFormat.NON_SCIENTIFIC -> stringResource(id = R.string.format_name_non_scientific)
                             NameDisplayFormat.BOTH -> stringResource(id = R.string.format_name_both)
                         },
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -141,18 +243,28 @@ fun TimeFormatSetting(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            stringResource(id = R.string.format_time_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 8.dp)
+            text = stringResource(id = R.string.format_time_title),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
+
+        Text(
+            text = stringResource(id = R.string.format_time_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+
         Column(Modifier.selectableGroup()) {
             TimeDisplayFormat.entries.forEach { format ->
+                val isSelected = format == currentFormat
                 Row(
-                    Modifier
+                    modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
                         .selectable(
-                            selected = (format == currentFormat),
+                            selected = isSelected,
                             onClick = { onFormatSelected(format) },
                             role = Role.RadioButton
                         )
@@ -160,8 +272,12 @@ fun TimeFormatSetting(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(
-                        selected = (format == currentFormat),
-                        onClick = null
+                        selected = isSelected,
+                        onClick = null,
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = MaterialTheme.colorScheme.primary,
+                            unselectedColor = MaterialTheme.colorScheme.outline
+                        )
                     )
                     Spacer(Modifier.width(16.dp))
                     Text(
@@ -170,7 +286,8 @@ fun TimeFormatSetting(
                             TimeDisplayFormat.DAY_MONTH_YEAR -> stringResource(id = R.string.format_time_day_month_year)
                             TimeDisplayFormat.TIME_DAY_MONTH_YEAR -> stringResource(id = R.string.format_time_time_day_month_year)
                         },
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

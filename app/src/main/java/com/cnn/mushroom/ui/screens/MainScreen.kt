@@ -33,8 +33,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -81,6 +84,11 @@ fun MainScreen(
     viewModel: MushroomViewModel = hiltViewModel(),
     navController: NavController,
 ) {
+
+    LaunchedEffect(Unit) {
+        viewModel.resetClassificationState()
+    }
+
     val activity = LocalView.current.context as Activity
     var showPermanentlyDeniedDialog by remember { mutableStateOf(false) }
     var callPermissionsRequester by remember { mutableStateOf(false) }
@@ -126,7 +134,8 @@ fun MainScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                onNavigateToSettings = { navController.navigate("user_setting") },
+                onNavigateToSettings = {
+                    navController.navigate("user_setting")},
                 onNavigateToSearch = { navController.navigate("search_content") }
             )
         }
@@ -193,9 +202,11 @@ fun MainScreen(
                                     rememberAsyncImagePainter(R.drawable.ic_launcher_foreground)
                                 }
                             }
-                            is ClassificationState.Error -> rememberAsyncImagePainter(R.drawable.logo_background)
-                        }
+                            is ClassificationState.Error -> {
+                                rememberAsyncImagePainter(R.drawable.logo_background)
 
+                            }
+                        }
                         Image(
                             painter = painter,
                             contentDescription = stringResource(id = R.string.photo_preview),
@@ -226,11 +237,15 @@ fun MainScreen(
                             is ClassificationState.Success -> {
                                 val m = (classificationState as ClassificationState.Success).mushroom
 
+                                // 1. Nazwa Top-1 (główna predykcja)
                                 val displayName = formatMushroomName(
                                     scientificName = m.name,
                                     commonName = viewModel.getCommonName(m.name),
                                     format = settings.nameDisplayFormat
                                 )
+
+                                // 2. Lista dodatkowych predykcji (Top-2 do Top-K)
+                                val topKNames = m.topKNames // Zakładamy, że ta lista jest już w Entity
 
                                 Column(
                                     modifier = Modifier
@@ -238,13 +253,14 @@ fun MainScreen(
                                         .padding(horizontal = 8.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
+                                    // --- 1. GŁÓWNA NAZWA I TYTUŁ ---
                                     Text(
-                                        // Użycie sformatowanej nazwy
                                         text = displayName,
                                         style = MaterialTheme.typography.headlineMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
 
+                                    // --- 2. GŁÓWNE WIERSZE INFORMACYJNE ---
                                     // Warunkowe wyświetlanie daty/czasu
                                     if (settings.displayTimestamp) {
                                         val formattedTime = formatTimestamp(
@@ -261,15 +277,45 @@ fun MainScreen(
                                     // Pozostałe InfoRow
                                     InfoRow(
                                         label = stringResource(id = R.string.confidence_score),
-                                        value = m.confidenceScore?.toString() ?: "Unknown"
+                                        value = m.confidenceScore?.let {
+                                            // Formatowanie wyniku ufności (np. do 2 miejsc po przecinku)
+                                            String.format("%.2f%%", it)
+                                        } ?: stringResource(id = R.string.unknown)
                                     )
                                     InfoRow(
                                         label = stringResource(id = R.string.is_edible),
-                                        value = m.isEdible?.let {
-                                            if (it) stringResource(id = R.string.yes)
-                                            else stringResource(id = R.string.no)
-                                        } ?: "Unknown"
+                                        value = m.isEdible
                                     )
+
+                                    // --- DODANIE LISTY TOP K PREDIKCJI PONIŻEJ ---
+
+                                    // Sprawdzamy, czy lista nie jest pusta, zanim wyświetlimy nagłówek
+                                    if (topKNames.isNotEmpty()) {
+
+                                        // Nagłówek dla dodatkowych predykcji
+                                        Spacer(modifier = Modifier.height(8.dp)) // Dodanie odstępu
+                                        Text(
+                                            text = stringResource(id = R.string.other_possible_classes), // Np. "Inne możliwe klasy"
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+
+                                        // Iterowanie przez listę i wyświetlanie każdego elementu
+                                        topKNames.forEachIndexed { index, name ->
+                                            val rank = index + 2 // Ranking zaczyna się od 2 (Top-2)
+
+                                            // Formatuje nazwę Top-K
+                                            val formattedTopKName = formatMushroomName(
+                                                scientificName = name,
+                                                commonName = viewModel.getCommonName(name),
+                                                format = settings.nameDisplayFormat
+                                            )
+                                            InfoRow(
+                                                label = null, // Np. "Top 2"
+                                                value = formattedTopKName
+                                            )
+                                        }
+                                    }
                                 }
                             }
 

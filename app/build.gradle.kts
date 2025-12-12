@@ -71,6 +71,14 @@ dependencies {
     implementation("org.pytorch:pytorch_android_lite:2.1.0") // Użyj najnowszej wersji
     implementation("org.pytorch:pytorch_android_torchvision_lite:2.1.0")
 
+    //do testow
+    testImplementation("org.robolectric:robolectric:4.12.1")
+    // --- TESTY JEDNOSTKOWE (src/test) ---
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.13.9") // Do mockowania (udawania) klas
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0") // Do testowania korutyn
+
+    implementation("com.google.code.gson:gson:2.10.1")
     // Room dependencies
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

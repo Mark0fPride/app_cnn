@@ -8,7 +8,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 
-@Database(entities = [MushroomEntity::class], version = 1, exportSchema = false) // Zmieniono wersję na 1
+@Database(entities = [MushroomEntity::class], version = 3, exportSchema = false) // Zmieniono wersję na 1
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun mushroomDao(): MushroomDao
 

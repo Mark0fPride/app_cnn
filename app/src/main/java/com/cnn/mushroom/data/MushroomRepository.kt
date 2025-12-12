@@ -21,7 +21,6 @@ import org.pytorch.torchvision.TensorImageUtils
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import androidx.core.net.toUri
 
 
 interface MushroomRepository {
@@ -29,10 +28,15 @@ interface MushroomRepository {
     suspend fun addMushroom(mushroomEntity: MushroomEntity)
     suspend fun deleteAllMushrooms()
     suspend fun deleteMushroom(mushroomEntity: MushroomEntity)
-    fun getMushroomById(id: Int): Flow<MushroomEntity?>
     fun getRecentMushroom(): Flow<MushroomEntity?>
-    fun classifyMushroom(imagePath: Uri): Flow<MushroomEntity>
+    fun classifyMushroom(imagePath: Uri): Flow<MushroomEntity?>
     fun getCommonName(scientificName: String): String
+    fun getMushroomsByDateRange(startDate: Long, endDate: Long): Flow<List<MushroomEntity>>
+    suspend fun deleteMushroomsByIds(ids: List<Int>)
+    fun getMushroomByIdSingle(mushroomID: Int): Flow<MushroomEntity?>
+    suspend fun updateMushroom(entity: MushroomEntity)
+    fun getEdibility(mushroomName: String): String
+
 }
 
 @Singleton
@@ -43,43 +47,60 @@ class DefaultMushroomRepository @Inject constructor(
 
     private val classNames: List<String>
     private val mushroomTranslations: Map<String, String>
-    private val currentLanguageCode = context.resources.configuration.locales[0].language // np. "pl" lub "en"
-
-    private val SCIENTIFIC_NAME_INDEX = 0
-    private val POLISH_NAME_INDEX = 1
-    private val ENGLISH_NAME_INDEX = 2
+    private val mushroomEdibilityMap: Map<String, String> // Mapa nazwy naukowej → jadalność
+    private val currentLanguageCode = context.resources.configuration.locales[0].language
 
     init {
-        classNames = loadClassNames()
-        mushroomTranslations = loadMushroomTranslations(currentLanguageCode)
+        // Ładujemy wszystkie dane z pliku CSV
+        val csvData = loadMushroomDataFromCsv()
+        classNames = csvData.map { it.scientificName }
+        mushroomTranslations = when (currentLanguageCode) {
+            "pl" -> csvData.associate { it.scientificName to it.polishName }
+            "en" -> csvData.associate { it.scientificName to it.englishName }
+            else -> csvData.associate { it.scientificName to it.englishName }
+        }
+        mushroomEdibilityMap = csvData.associate {
+            it.scientificName to translateEdibility(it.edibility, currentLanguageCode)
+        }
     }
 
-    private fun loadMushroomTranslations(languageCode: String): Map<String, String> {
-        val map = mutableMapOf<String, String>()
+    /**
+     * Klasa pomocnicza do przechowywania danych o grzybach z pliku CSV
+     */
+    private data class MushroomData(
+        val scientificName: String,
+        val polishName: String,
+        val englishName: String,
+        val edibility: String
+    )
 
-
-        val targetIndex = when (languageCode) {
-            "pl" -> POLISH_NAME_INDEX
-            "en" -> ENGLISH_NAME_INDEX
-            else -> ENGLISH_NAME_INDEX
-        }
+    /**
+     * Ładuje wszystkie dane o grzybach z pliku CSV
+     */
+    private fun loadMushroomDataFromCsv(): List<MushroomData> {
+        val mushroomDataList = mutableListOf<MushroomData>()
 
         try {
-            val inputStream = context.assets.open("mushrooms_translate.csv")
+            val inputStream = context.assets.open("format21.csv")
             val reader = inputStream.bufferedReader()
 
+            // Pomijamy nagłówek
             reader.readLine()
 
             var line: String?
             while (reader.readLine().also { line = it } != null) {
                 val tokens = line?.split(",")
 
-                if (tokens != null && tokens.size > targetIndex) {
-                    val scientificName = tokens[SCIENTIFIC_NAME_INDEX].trim()
-                    val commonName = tokens[targetIndex].trim()
+                if (tokens != null && tokens.size >= 4) {
+                    val scientificName = tokens[0].trim()
+                    val polishName = tokens[1].trim()
+                    val englishName = tokens[2].trim()
+                    val edibility = tokens[3].trim()
 
                     if (scientificName.isNotEmpty()) {
-                        map[scientificName] = commonName
+                        mushroomDataList.add(
+                            MushroomData(scientificName, polishName, englishName, edibility)
+                        )
                     }
                 }
             }
@@ -87,7 +108,33 @@ class DefaultMushroomRepository @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return map
+
+        return mushroomDataList
+    }
+
+    private fun translateEdibility(edibility: String, lang: String): String {
+        return when (lang) {
+            "pl" -> when (edibility.lowercase()) {
+                "edible" -> "Jadalny"
+                "poisonous" -> "Trujący"
+                "unknown" -> "Nieznane"
+                else -> edibility
+            }
+
+            "en" -> when (edibility.lowercase()) {
+                "edible" -> "Edible"
+                "poisonous" -> "Poisonous"
+                "unknown" -> "Unknown"
+                else -> edibility
+            }
+
+            else -> edibility
+        }
+    }
+
+    override fun getEdibility(mushroomName: String): String {
+        val edibility = mushroomEdibilityMap[mushroomName]
+        return edibility ?: "Unknown"
     }
 
     override fun getCommonName(scientificName: String): String {
@@ -95,105 +142,120 @@ class DefaultMushroomRepository @Inject constructor(
         return mushroomTranslations[targetName] ?: scientificName
     }
 
-    private fun loadClassNames(): List<String> {
-        return context.assets.open("mushrooms.txt").bufferedReader().use {
-            it.readText()
-        }.split("\n")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-    }
-
-    // --- DAO methods ---
-    override fun getAllMushrooms(): Flow<List<MushroomEntity>> =
-        mushroomDao.getAllMushrooms()
-
-    override suspend fun addMushroom(mushroomEntity: MushroomEntity) =
-        mushroomDao.addMushroom(mushroomEntity)
-
-    override suspend fun deleteAllMushrooms() =
-        mushroomDao.deleteAllMushrooms()
-
-    override suspend fun deleteMushroom(mushroomEntity: MushroomEntity) =
-        mushroomDao.deleteMushroom(mushroomEntity)
-
-    override fun getMushroomById(id: Int): Flow<MushroomEntity?> =
-        mushroomDao.getMushroomById(id)
-
-    override fun getRecentMushroom(): Flow<MushroomEntity?> =
-        mushroomDao.getRecentMushroom()
-
-
-    override fun classifyMushroom(imagePath: Uri): Flow<MushroomEntity> = flow {
+    override fun classifyMushroom(imagePath: Uri): Flow<MushroomEntity?> = flow {
         try {
             Log.d("MushroomClassification", "Starting mushroom classification for image: $imagePath")
 
-            // Otwieranie pliku z nazwami klas
-            Log.d("MushroomClassification", "Loading class names from mushroom.txt")
+            // --- 1. Load class names ---
+            Log.d("MushroomClassification", "Loaded ${classNames.size} class names")
 
-            Log.d("MushroomClassification", "Loaded ${classNames.size} class names: ${classNames.joinToString(", ")}")
-
-            // Ładowanie modelu
-            Log.d("MushroomClassification", "Loading PyTorch model")
+            // --- 2. Load PyTorch Mobile model ---
             val model: Module = LiteModuleLoader.load(assetFilePath("mushroom_classifier.ptl"))
             Log.d("MushroomClassification", "Model loaded successfully")
 
-            // Przetwarzanie obrazu
-            Log.d("MushroomClassification", "Loading and processing bitmap from: $imagePath")
+            // --- 3. Load and preprocess bitmap ---
             val bitmap = loadBitmapFromUri(context = context, uri = imagePath)
-            if (bitmap == null) {
-                Log.e("MushroomClassification", "Failed to decode bitmap from path: $imagePath")
-                throw IOException("Failed to decode bitmap")
+                ?: throw IOException("Failed to decode bitmap from path: $imagePath")
+
+            val scaledBitmap = bitmap.scale(224, 224)
+
+            // --- 4. Konwertuj bitmapę do tensora z NORMALIZACJĄ ---
+            // TensorImageUtils.convertBitmapToFloat32Tensor automatycznie:
+            // 1. Dzieli przez 255 (zakres 0-1)
+            // 2. Stosuje normalizację z podanymi mean/std
+            // 3. Zwraca tensor w formacie NCHW
+
+            val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
+                scaledBitmap,
+                TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
+                TensorImageUtils.TORCHVISION_NORM_STD_RGB
+            )
+            val data = inputTensor.dataAsFloatArray
+            val minVal = data.minOrNull()
+            val maxVal = data.maxOrNull()
+            Log.d("MushroomClassification", "Input Tensor Range: min=$minVal, max=$maxVal")
+
+
+            // --- 5. Forward pass ---
+            val output = model.forward(IValue.from(inputTensor))
+            val logits = output.toTensor().dataAsFloatArray
+
+            Log.d("MushroomClassification", "Model output (logits) size: ${logits.size}")
+            Log.d("MushroomClassification", "Logits sample (first 5): ${logits.take(5).joinToString()}")
+
+            // --- 6. Stabilny softmax ---
+            val maxLogit = logits.maxOrNull() ?: 0f
+            val expLogits = logits.map { kotlin.math.exp(it - maxLogit) }
+            val sumExp = expLogits.sum()
+            val probabilities = expLogits.map { (it / sumExp).toFloat() }
+
+            // --- 7. Find top class ---
+            val maxIndex = probabilities.indices.maxByOrNull { probabilities[it] } ?: 0
+            val maxScore = probabilities[maxIndex]
+            val predictedScientificName = classNames[maxIndex]
+            val confidencePercentage = maxScore * 100
+
+            // Debug: wypisz top 5 predykcji
+            Log.d("MushroomClassification", "Top 5 predictions:")
+
+// 1. Sortowanie i wybieranie top 5 predykcji
+            val top5Predictions = probabilities.mapIndexed { index, prob ->
+                Pair(classNames[index], prob) // Tworzenie pary (Nazwa Klasy, Prawdopodobieństwo)
+            }.sortedByDescending { it.second }
+                .take(5)
+
+// Inicjalizacja listy do przechowywania nazw klas od 2 do 5
+            val topKClasses: List<String> = top5Predictions
+                // 2. Pobranie predykcji od indeksu 1 do 4 (czyli top-2, top-3, top-4, top-5)
+                .drop(1)
+                .take(4)
+                // 3. Wyodrębnienie samej nazwy klasy (first z pary Pair)
+                .map { it.first }
+
+// Wypisanie predykcji i użycie listy
+            top5Predictions.forEachIndexed { i, pair ->
+                Log.d("MushroomClassification",
+                    "${i + 1}. ${pair.first}: ${pair.second * 100}%")
             }
 
-            Log.d("MushroomClassification", "Original bitmap size: ${bitmap.width}x${bitmap.height}")
-            val scaledBitmap = bitmap.scale(224, 224)
-            Log.d("MushroomClassification", "Scaled bitmap size: ${scaledBitmap.width}x${scaledBitmap.height}")
+// Debug: Wypisz stworzoną listę topKClasses
+            Log.d("MushroomClassification", "topKClasses (Top 2-5): $topKClasses")
 
-            val mean = floatArrayOf(0.485f, 0.456f, 0.406f)
-            val std = floatArrayOf(0.229f, 0.224f, 0.225f)
 
-            Log.d("MushroomClassification", "Converting bitmap to tensor")
-            val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(scaledBitmap, mean, std)
-            Log.d("MushroomClassification", "Tensor conversion completed")
+            // --- 8. Pobierz nazwę potoczną i informację o jadalności ---
+            val commonName = getCommonName(predictedScientificName)
+            val isEdible = getEdibility(predictedScientificName)
 
-            // Inferencja
-            Log.d("MushroomClassification", "Running model inference")
-            val output = model.forward(IValue.from(inputTensor))
-            val scoresTensor = output.toTensor()
-            val scores = scoresTensor.dataAsFloatArray
+            Log.d("MushroomClassification", "Final prediction: $predictedScientificName ($commonName), " +
+                    "Confidence: $confidencePercentage%, Edible: $isEdible")
 
-            Log.d("MushroomClassification", "Inference completed. Scores array size: ${scores.size}")
-            Log.d("MushroomClassification", "Score values: ${scores.take(5).joinToString()}...") // Log first 5 scores
+            // --- 9. Low confidence check ---
+            if (confidencePercentage < 0.1f) {
+                Log.w("MushroomClassification", "Low confidence ($confidencePercentage%). Returning null.")
+                emit(null)
+                return@flow
+            }
 
-            val maxIndex = scores.indices.maxByOrNull { scores[it] } ?: 0
-            val maxScore = scores[maxIndex]
-            val predictedClassName = classNames[maxIndex]
-
-            Log.d("MushroomClassification", "Prediction result - Index: $maxIndex, Class: $predictedClassName, Score: $maxScore")
-
-            // Tworzenie obiektu MushroomEntity
-            val confidencePercentage = maxScore * 100
-            val isEdible = predictedClassName == "Prawdziwek"
-
-            Log.d("MushroomClassification", "Creating MushroomEntity - Confidence: $confidencePercentage%, Edible: $isEdible")
-
+            // --- 10. Emit result ---
             val mushroom = MushroomEntity(
-                name = predictedClassName,
+                name = predictedScientificName,
                 imagePath = imagePath.toString(),
+                topKNames = topKClasses,
                 timestamp = System.currentTimeMillis(),
                 confidenceScore = confidencePercentage,
                 isEdible = isEdible
             )
 
-            Log.i("MushroomClassification", "Classification completed: $predictedClassName (${"%.2f".format(confidencePercentage)}% confidence)")
             emit(mushroom)
 
         } catch (e: Exception) {
             Log.e("MushroomClassification", "Error during mushroom classification: ${e.message}", e)
-            throw e // Re-throw to maintain the error handling in the flow
+            throw e
         }
     }.flowOn(Dispatchers.IO)
 
+
+    // --- Reszta metody bez zmian ---
     private fun assetFilePath(modelName: String): String {
         Log.d("MushroomClassification", "Getting asset file path for: $modelName")
         val file = File(context.cacheDir, modelName)
@@ -219,8 +281,37 @@ class DefaultMushroomRepository @Inject constructor(
         }
     }
 
+    // --- Reszta metod DAO bez zmian ---
+    override fun getAllMushrooms(): Flow<List<MushroomEntity>> =
+        mushroomDao.getAllMushrooms()
 
+    override suspend fun addMushroom(mushroomEntity: MushroomEntity) =
+        mushroomDao.addMushroom(mushroomEntity)
 
+    override suspend fun deleteAllMushrooms() =
+        mushroomDao.deleteAllMushrooms()
+
+    override suspend fun deleteMushroom(mushroomEntity: MushroomEntity) =
+        mushroomDao.deleteMushroom(mushroomEntity)
+
+    override fun getRecentMushroom(): Flow<MushroomEntity?> =
+        mushroomDao.getRecentMushroom()
+
+    override fun getMushroomsByDateRange(startDate: Long, endDate: Long): Flow<List<MushroomEntity>> {
+        return mushroomDao.getMushroomsByDateRange(startDate, endDate)
+    }
+
+    override suspend fun deleteMushroomsByIds(ids: List<Int>) {
+        return mushroomDao.deleteByIds(ids)
+    }
+
+    override fun getMushroomByIdSingle(mushroomID: Int): Flow<MushroomEntity?> {
+        return mushroomDao.getMushroomByIdSingle(mushroomID)
+    }
+
+    override suspend fun updateMushroom(entity: MushroomEntity) {
+        return mushroomDao.updateMushroom(entity)
+    }
 }
 
 fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap {
